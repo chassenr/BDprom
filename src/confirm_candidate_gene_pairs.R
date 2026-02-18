@@ -7,6 +7,7 @@ confirm_candidate_gene_pairs <- function(
     ge_dir = "diatomicbase_data",
     cor_min = 0.5,
     slope_diff = 2,
+    median_diff = 1.5,
     detect_f = 0.5,
     out_file = "bdprom_ge_pairs.txt"
 ) {
@@ -93,14 +94,23 @@ confirm_candidate_gene_pairs <- function(
   }
   
   # filter output
-  gene_exp_filt <- gene_exp_pairs %>% 
-    filter(
-      cor >= cor_min,
-      slope <= slope_diff & slope >= 1/slope_diff
-    ) 
+  gene_exp_filt <- gene_exp_pairs
+  if(!is.null(cor_min)) {
+    gene_exp_filt <- gene_exp_filt %>% filter(cor >= cor_min)
+  }
+  if(!is.null(slope_diff)) {
+    gene_exp_filt <- gene_exp_filt %>% filter(slope <= slope_diff & slope >= 1/slope_diff)
+  }
+  if(!is.null(median_diff)) {
+    gene_exp_filt <- gene_exp_filt %>% filter(abs(median_1 - median_2) / ((median_1 + median_2) / 2) <= median_diff)
+  }
   
   # consensus selection across all studies
-  select_pairs <- names(which(table(gene_exp_filt$gene_pair) / length(gene_exp_tpm) >= detect_f))
+  if(!is.null(detect_f)) {
+    select_pairs <- names(which(table(gene_exp_filt$gene_pair) / length(gene_exp_tpm) >= detect_f))
+  } else {
+    select_pairs <- names(table(gene_exp_filt$gene_pair))
+  }
   # subset table to only those gene pairs passing filter
   bidir_promoter_pairs <- gene_exp_filt[gene_exp_filt$gene_pair %in% select_pairs, ]
   # order by gene pair

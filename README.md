@@ -55,11 +55,14 @@ Second, gene expression profiles across multiple samples are used to confirm co-
 
 :warning: **WIP**: show example of csv read count file content.
 
-The candidate gene pairs from step 1 are then filtered based on the following criteria:
+The candidate gene pairs from step 1 can then be filtered based on the following criteria:
 
 * minimum correlation coefficient (default: 0.5)
 * maximum fold deviation from a slope of 1 in the linear regression (default: 2, i.e. slope ranging between 0.5 and 2)
+* maximum difference between median gene expression relative to the average of the medians (default: 1.5)
 * minimum fraction of studies the gene pair passes the above two conditions (default: 0.5)
+
+It is possible to modify or disable any of these filters. Since the computation of co-expression patterns can be time-consuming, there is also the option to only repeat the filter without having to re-process the gene expression count tables.
 
 Gene expression patterns are then analysed with the R function [```confirm_candidate_gene_pairs()```(https://github.com/chassenr/BDprom/blob/main/src/confirm_candidate_gene_pairs.R):
 
