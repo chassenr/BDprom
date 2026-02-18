@@ -33,7 +33,7 @@ As these criteria solely rely on genome organisation, only a gtf file is require
 
 :warning: **WIP**: show example of gtf file content.
 
-The selection is then performed with the R function ```[identify_candidate_gene_pairs()](https://github.com/chassenr/BDprom/blob/main/src/identify_candidate_gene_pairs.R)```:
+The selection is then performed with the R function [```identify_candidate_gene_pairs()```](https://github.com/chassenr/BDprom/blob/main/src/identify_candidate_gene_pairs.R):
 
 ```
 source("src/identify_candidate_gene_pairs.R")
@@ -61,7 +61,7 @@ The candidate gene pairs from step 1 are then filtered based on the following cr
 * maximum fold deviation from a slope of 1 in the linear regression (default: 2, i.e. slope ranging between 0.5 and 2)
 * minimum fraction of studies the gene pair passes the above two conditions (default: 0.5)
 
-Gene expression patterns are then analysed with the R function ```[confirm_candidate_gene_pairs()](https://github.com/chassenr/BDprom/blob/main/src/confirm_candidate_gene_pairs.R)```:
+Gene expression patterns are then analysed with the R function [```confirm_candidate_gene_pairs()```(https://github.com/chassenr/BDprom/blob/main/src/confirm_candidate_gene_pairs.R):
 
 ```
 source("src/confirm_candidate_gene_pairs.R")
@@ -78,7 +78,7 @@ ge_candidate_pairs <- confirm_candidate_gene_pairs(
 
 Additional to the summary statistics about the co-expression patterns generated in step 2, pairwise scatter plots are created for each gene pair passing the filter in step 2. For studies where the gene pair is expressed, but which did not make the thresholds in step 2, gene expression (TPM) is shown as grey dots. Otherwise points are colored by study and the correlation coefficient for the gene pair is included in the legend. Additionally, the line, slope and R2 of the linear regression using gene expression values from all studies (incl. the grey dots) and only using the values from the studies where the gene pair passed the filter are shown in grey and black, respectively.
 
-The R plotting function tailored for this analysis is ```[visualize_candidate_gene_pairs()](https://github.com/chassenr/BDprom/blob/main/src/visualize_candidate_gene_pairs.R)```:
+The R plotting function tailored for this analysis is [```visualize_candidate_gene_pairs()```](https://github.com/chassenr/BDprom/blob/main/src/visualize_candidate_gene_pairs.R):
 
 ```
 source("src/visualize_candidate_gene_pairs.R")
