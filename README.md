@@ -64,7 +64,7 @@ The candidate gene pairs from step 1 can then be filtered based on the following
 
 It is possible to modify or disable any of these filters. Since the computation of co-expression patterns can be time-consuming, there is also the option to only repeat the filter without having to re-process the gene expression count tables.
 
-Gene expression patterns are then analysed with the R function [```confirm_candidate_gene_pairs()```(https://github.com/chassenr/BDprom/blob/main/src/confirm_candidate_gene_pairs.R):
+Gene expression patterns are then analysed with the R function [```confirm_candidate_gene_pairs()```](https://github.com/chassenr/BDprom/blob/main/src/confirm_candidate_gene_pairs.R):
 
 ```
 source("src/confirm_candidate_gene_pairs.R")
