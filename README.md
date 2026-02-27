@@ -62,7 +62,7 @@ The candidate gene pairs from step 1 (```candidate_pairs = list_candidate_pairs`
 * maximum difference between median gene expression relative to the average of the medians (default: ```median_diff = 1.5```)
 * minimum fraction of studies the gene pair passes the above two conditions (default: ```detect_f = 0.5```)
 
-It is possible to modify or disable any of these filters. 
+It is possible to modify or disable any of these filters by changing the values in the below code. To disable a filter it should be set to ```NULL```. 
 
 Gene expression patterns are then analysed with the R function [```confirm_candidate_gene_pairs()```](https://github.com/chassenr/BDprom/blob/main/src/confirm_candidate_gene_pairs.R):
 
