@@ -7,8 +7,24 @@ visualize_candidate_gene_pairs <- function(
   study.col <- col_pal(length(ge$tpm))
   names(study.col) <- names(ge$tpm)
   
+  # first, get R2 of linear fit across all studies passing thresholds in previous step to sort figures
+  ge_r2 <- sapply(
+    unique(ge$bdp$gene_pair),
+    function(i) {
+      g1 <- gsub("___.*$", "", i)
+      g2 <- gsub("^.*___", "", i)
+
+      ge1_pass <- unlist(sapply(ge$tpm[ge$bdp$study[ge$bdp$gene_pair == i]], function(x) x[, g1]))
+      ge2_pass <- unlist(sapply(ge$tpm[ge$bdp$study[ge$bdp$gene_pair == i]], function(x) x[, g2]))
+      fit_pass <- lm(I(ge2_pass) ~ 0 + ge1_pass)
+      
+      return(summary(fit_pass)$r.squared)
+    }
+  )
+  
+  # then generate figures
   pdf(out_file, height = 6, width = 7, onefile = T)
-  for(i in unique(ge$bdp$gene_pair)) {
+  for(i in names(ge_r2)[order(ge_r2, decreasing = T)]) {
     
     g1 <- gsub("___.*$", "", i)
     g2 <- gsub("^.*___", "", i)
