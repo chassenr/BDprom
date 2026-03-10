@@ -9,7 +9,7 @@ identify_candidate_gene_pairs <- function(
   gene_coord <- read.table(gtf, h = F, sep = "\t") %>% 
     # only consider coordinates for transcript (alternatives: gene, transcript)
     filter(V3 == "exon") %>% 
-    # extract gene names from gtf collumn 9
+    # extract gene names from gtf column 9
     mutate(id = gsub("gene_id ", "", gsub(";.*$", "", V9))) %>% 
     # group data set by gene name
     group_by(id) %>% 
