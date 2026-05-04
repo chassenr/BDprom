@@ -1,0 +1,15 @@
+##manual search: type curl -d paste the url link -o write the output directory
+
+# specify file path to analysis directory
+wdir: "/otc-genomics/IOWseq000082_BDprom/Intermediate_results"
+
+# Specify the taxon for which to retrieve RNA-seq experiments
+tax_id: "2850"
+
+# sepcify thresholds for filtering metadata
+min_read_counts: 5000000
+min_n_runs: 5
+seq_technology: "ILLUMINA,BGISEQ,DNBSEQ"
+only_keep_pubmed: "TRUE"
+
+
