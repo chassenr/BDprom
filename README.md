@@ -1,6 +1,27 @@
 # BDprom
 Identification of bidirectional promoters in eukaryotic genomes based on gene expression profiles
 
+The approach consist of 3 workflows:
+
+1. ```reads_wf```: Identification, download and processing of transcriptomic read data to obtain gene expression profiles
+2. ```identify_wf```: Identification of candidate gene pairs likely controlled by a bidirectional promoter 
+3. ```èxtract_wf```: Extraction and alignment of promoter sequences
+
+
+## reads_wf
+
+```
+conda activate snakemake-8.28.0
+cd /otc-genomics/IOWseq000082_BDprom/Intermediate_results/Repos/BDprom
+
+snakemake -s rules/rules_reads_wf.smk --software-deployment-method conda --cores 96
+
+```
+
+
+
+
+
 
 ## Step 0: Preparations
 

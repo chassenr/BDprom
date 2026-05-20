@@ -1,0 +1,4 @@
+.snakemake
+.snakemake/*
+.testing
+.testing/*

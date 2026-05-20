@@ -124,7 +124,7 @@ if (is.null(opt$ena_search_out) | is.null(opt$output)) {
 seq_tech <- strsplit(opt$seq_tech, ",")[[1]]
 
 # reading data
-ENA_curl <- read.table(file = "RNAseq_raw.tsv", comment.char = "", quote = "", sep = "\t", h = T)
+ENA_curl <- read.table(file = opt$ena_search_out, comment.char = "", quote = "", sep = "\t", h = T)
 # head(ENA_curl)
 # colnames(ENA_curl)
 
@@ -139,7 +139,7 @@ msg(
     length(unique(ENA_curl$study_accession)),
     " ENA studies. The total data volume is ",
     hsize(sum(sapply(strsplit(ENA_curl$fastq_bytes, ";"), function(x) sum(as.numeric(x))))),
-    "."
+    ".\n"
   )
 )
 
@@ -173,7 +173,7 @@ combined_xrefs <- lapply(
     values_fn = function(x) paste(unique(x), collapse = ";")
   )
 
-msg(paste0(nrow(combined_xrefs), " of those ENA studies have associated scientific articles."))
+msg(paste0(nrow(combined_xrefs), " of those ENA studies have associated scientific articles.\n"))
 
 
 # Now, combine the combined_xref_PubMed table to the very original ENA_curl table that we had obtained from the ENA database. #left_join()
@@ -223,7 +223,7 @@ msg(
     ". Reads counts range from ",
     min(ENA_xrefs_filtered$read_count),
     " to ",
-    max(ENA_xrefs_filtered$read_count), "."
+    max(ENA_xrefs_filtered$read_count), ".\n"
   )
 )
 
@@ -242,7 +242,7 @@ if (opt$pubmed) {
       ". Reads counts range from ",
       min(ENA_xrefs_filtered$read_count),
       " to ",
-      max(ENA_xrefs_filtered$read_count), "."
+      max(ENA_xrefs_filtered$read_count), ".\n"
     )
   )
 }
@@ -250,19 +250,19 @@ if (opt$pubmed) {
 
 ## format download links
 
-ENA_xrefs_downloadlinks <- ENA_xrefs_filtered |>
-  separate(
-    col = fastq_ftp,
-    into = c("r1_download", "r2_download"),
-    sep = ";",
-    remove = F,
-    convert = F,
-    fill = "right"
-  )
+#ENA_xrefs_downloadlinks <- ENA_xrefs_filtered |>
+#  separate(
+#    col = fastq_ftp,
+#    into = c("r1_download", "r2_download"),
+#    sep = ";",
+#    remove = F,
+#    convert = F,
+#    fill = "right"
+#  )
 
 # write output
 write.table(
-  ENA_xrefs_downloadlinks,
+  ENA_xrefs_filtered,
   opt$output,
   quote = F,
   sep = "\t",

@@ -1,46 +1,253 @@
+# To import the RNAseq_filteredRNAseq_filtered.tsv file two packages are needed:
+import glob
+import pandas as pd
+
 # specify config file
 # change this path to the location of the config file with your project specific settings
 configfile: "/otc-genomics/IOWseq000082_BDprom/Intermediate_results/Repos/BDprom/config/config_reads_wf.yaml"
 
 rule all:
-    input: 
-        ena_out = config["wdir"] + "/ENA_out/RNAseq_raw.tsv",
-        ena_filtered = config["wdir"] + "/ENA_out/RNAseq_filtered.tsv"
-
+	input:
+		ena_out = config["wdir"] + "/ENA_out/RNAseq_raw.tsv",
+		ena_filtered = config["wdir"] + "/ENA_out/RNAseq_filtered.tsv",
+		done = config["wdir"] + "/Fastq_downloaded/done",
+		phix_clipped = expand(config["wdir"] + "/Fastq_phix_clipped/{sample}_1.fastq.gz", sample = SAMPLES),
+		adapter_clipped = expand(config["wdir"] + "/Fastq_adapter_clipped/{sample}_1.fastq.gz", sample = SAMPLES),
+		html = expand(config["wdir"] + "/Fastq_qc/{sample}_1_fastqc.html", sample = SAMPLES),
+		fastqc = config["wdir"] + "/Fastq_qc/done",
+		bam = expand(config["wdir"] + "/Fastq_mapped/{sample}.bam", sample = SAMPLES),
+		done = config["wdir"] + "/Gene_expression/done"
 rule search_ena:
-    output:
-        ena_out = config["wdir"] + "/ENA_out/RNAseq_raw.tsv"
-    params:
-        taxid = config["tax_id"]
-    shell:
-        """
-        curl -X POST -H "Content-Type: application/x-www-form-urlencoded" -d 'result=read_run&query=tax_tree('{params.tax_id}')%20AND%20library_source%3D%22transcriptomic%22%20AND%20library_strategy%3D%22rna-seq%22&fields=run_accession%2Cexperiment_title%2Ctax_id%2Clibrary_source%2Cbase_count%2Cbio_material%2Cbroad_scale_environmental_context%2Cbroker_name%2Ccenter_name%2Cchecklist%2Ccollected_by%2Ccollection_date%2Ccollection_date_end%2Ccollection_date_start%2Ccountry%2Cdescription%2Cenvironmental_medium%2Cexperiment_accession%2Cexperiment_alias%2Cfastq_bytes%2Cfastq_ftp%2Cfastq_md5%2Cfirst_created%2Cfirst_public%2Cidentified_by%2Cinstrument_model%2Cinstrument_platform%2Cinvestigation_type%2Cisolate%2Cisolation_source%2Clast_updated%2Clat%2Clibrary_construction_protocol%2Clibrary_gen_protocol%2Clibrary_layout%2Clibrary_max_fragment_size%2Clibrary_min_fragment_size%2Clibrary_name%2Clibrary_selection%2Clibrary_strategy%2Clocal_environmental_context%2Clocation%2Clocation_end%2Clocation_start%2Clon%2Cmarine_region%2Cncbi_reporting_standard%2Cnominal_length%2Cnominal_sdev%2Cproject_name%2Cread_count%2Cread_strand%2Crna_integrity_num%2Crna_purity_230_ratio%2Crna_purity_280_ratio%2Crun_alias%2Csample_accession%2Csample_alias%2Csample_collection%2Csample_description%2Csample_material%2Csample_storage%2Csample_storage_processing%2Csample_title%2Csampling_campaign%2Csampling_platform%2Csampling_site%2Cscientific_name%2Csecondary_project%2Csecondary_sample_accession%2Csecondary_study_accession%2Csequencing_method%2Cstudy_accession%2Cstudy_alias%2Cstudy_title%2Csub_species%2Csub_strain%2Csubmission_accession%2Csubmission_tool%2Ctag%2Ctarget_gene%2Ctax_lineage%2Ctaxonomic_classification&format=tsv' "https://www.ebi.ac.uk/ena/portal/api/search" > {output.ena.out}
-        """
+	output:
+		ena_out = config["wdir"] + "/ENA_out/RNAseq_raw.tsv"
+	params:
+		tax_id = config["tax_id"]
+	shell:
+		"""
+		curl -X POST -H "Content-Type: application/x-www-form-urlencoded" -d 'result=read_run&query=tax_tree({params.tax_id})%20AND%20library_source%3D%22transcriptomic%22%20AND%20library_strategy%3D%22rna-seq%22&fields=run_accession%2Cexperiment_title%2Ctax_id%2Clibrary_source%2Cbase_count%2Cbio_material%2Cbroad_scale_environmental_context%2Cbroker_name%2Ccenter_name%2Cchecklist%2Ccollected_by%2Ccollection_date%2Ccollection_date_end%2Ccollection_date_start%2Ccountry%2Cdescription%2Cenvironmental_medium%2Cexperiment_accession%2Cexperiment_alias%2Cfastq_bytes%2Cfastq_ftp%2Cfastq_md5%2Cfirst_created%2Cfirst_public%2Cidentified_by%2Cinstrument_model%2Cinstrument_platform%2Cinvestigation_type%2Cisolate%2Cisolation_source%2Clast_updated%2Clat%2Clibrary_construction_protocol%2Clibrary_gen_protocol%2Clibrary_layout%2Clibrary_max_fragment_size%2Clibrary_min_fragment_size%2Clibrary_name%2Clibrary_selection%2Clibrary_strategy%2Clocal_environmental_context%2Clocation%2Clocation_end%2Clocation_start%2Clon%2Cmarine_region%2Cncbi_reporting_standard%2Cnominal_length%2Cnominal_sdev%2Cproject_name%2Cread_count%2Cread_strand%2Crna_integrity_num%2Crna_purity_230_ratio%2Crna_purity_280_ratio%2Crun_alias%2Csample_accession%2Csample_alias%2Csample_collection%2Csample_description%2Csample_material%2Csample_storage%2Csample_storage_processing%2Csample_title%2Csampling_campaign%2Csampling_platform%2Csampling_site%2Cscientific_name%2Csecondary_project%2Csecondary_sample_accession%2Csecondary_study_accession%2Csequencing_method%2Cstudy_accession%2Cstudy_alias%2Cstudy_title%2Csub_species%2Csub_strain%2Csubmission_accession%2Csubmission_tool%2Ctag%2Ctarget_gene%2Ctax_lineage%2Ctaxonomic_classification&format=tsv' "https://www.ebi.ac.uk/ena/portal/api/search" > {output.ena_out}
+		"""
 
 rule filter_metadata:
-    input:
-        ena_out = config["wdir"] + "/ENA_out/RNAseq_raw.tsv"
-    output:
-        ena_filtered = config["wdir"] + "/ENA_out/RNAseq_filtered.tsv"
-    params:
-        min_read_counts = config["min_read_counts"],
-        min_n_runs = config["min_n_runs"],
-        seq_technology = config["seq_technology"],
-        only_keep_pubmed = config["only_keep_pubmed"],
-        script = "src/filter_ena_metadata.R"
-    conda: "r-4.4.0"
-    log:
-        config["wdir"] + "ENA_out/logs/filter_ena_metadata.log"
-    shell:
-        """
-        {params.script} -e {input.ena_curl} -c {params.min_read_count} -r {params.min_n_runs} -s {params.seq_technology} -p {params.only_keep_pubmed} -o {output.ena_filtered} >> {log} 2>&1
-        """
-    
-    rule download_files:
-        input:
-        output:
-        log:
-        shell:
-            """
+	input:
+		ena_out = config["wdir"] + "/ENA_out/RNAseq_raw.tsv"
+	output:
+		ena_filtered = config["wdir"] + "/ENA_out/RNAseq_filtered.tsv"
+	params:
+		min_read_counts = config["min_read_counts"],
+		min_n_runs = config["min_n_runs"],
+		seq_technology = config["seq_technology"],
+		only_keep_pubmed = config["only_keep_pubmed"],
+		script = "src/filter_ena_metadata.R"
+	conda: "r-4.4.0"
+	log:
+		config["wdir"] + "/ENA_out/logs/filter_ena_metadata.log"
+	shell:
+		"""
+		{params.script} -e {input.ena_out} -c {params.min_read_counts} -r {params.min_n_runs} -s {params.seq_technology} -p {params.only_keep_pubmed} -o {output.ena_filtered} >> {log} 2>&1
+		"""
 
-            """
+# define wildcards based on run accession
+RNAseq_filtered = pd.read_table(config["wdir"] + "/ENA_out/RNAseq_filtered.tsv", sep = "\t", header = 0, lineterminator = "\n") 
+SAMPLES = RNAseq_filtered.run_accession.to_list()
+
+rule download_files:
+	input:
+		ena_filtered = config["wdir"] + "/ENA_out/RNAseq_filtered.tsv"
+	output:
+		done = config["wdir"] + "/Fastq_downloaded/done"
+	params:
+		outdir = config["wdir"] + "/Fastq_downloaded"
+	log:
+		stdout = config["wdir"] + "/Fastq_downloaded/md5_out.log",
+		stderr = config["wdir"] + "/Fastq_downloaded/md5_err.log"
+	shell:
+		"""
+		CN=$(head -1 {input.ena_filtered} | tr '\\t' '\\n' | grep -w -n "fastq_ftp" | cut -d':' -f1)
+		cut -f$CN {input.ena_filtered} | sed '1d' | tr ';' '\\n' | while read line
+		do
+		  wget -c $line -P {params.outdir}
+		done
+		MD5=$(head -1 {input.ena_filtered} | tr '\\t' '\\n' | grep -w -n "fastq_md5" | cut -d':' -f1)
+		paste <(cut -f$MD5 {input.ena_filtered} | sed '1d' | tr ';' '\\n') <(cut -f$CN {input.ena_filtered} | sed '1d' | tr ';' '\\n' | xargs -n1 basename) > {params.outdir}/md5_checksums.txt
+		md5sum -c {params.outdir}/md5_checksums.txt > {log.stdout} 2> {log.stderr}
+		touch {output.done}
+		"""
+
+# adapter clipping using bbduk
+rule phix_clipping:
+	input:
+		done = config["wdir"] + "/Fastq_downloaded/done"
+	output:
+		phix_clipped = config["wdir"] + "/Fastq_phix_clipped/{sample}_1.fastq.gz"
+	params:
+		indir = config["wdir"] + "/Fastq_downloaded",
+		outdir = config["wdir"] + "/Fastq_phix_clipped",
+		sample = "{sample}"
+	threads: config["parallel_threads"]
+	conda: "busco-5.8.0"
+	log:
+		config["wdir"] + "/Fastq_phix_clipped/logs/{sample}_phix.log"
+	shell:
+		"""
+		if [ -f {params.indir}/{params.sample}_2.fastq.gz ]
+		then
+		  bbduk.sh in={params.indir}/{params.sample}_1.fastq.gz in2={params.indir}/{params.sample}_2.fastq.gz out={output.phix_clipped} out2={params.outdir}/{params.sample}_2.fastq.gz ref=phix k=28 threads={threads} > {log} 2>&1
+		else
+		  bbduk.sh in={params.indir}/{params.sample}.fastq.gz out={output.phix_clipped} ref=phix k=28 threads={threads} > {log} 2>&1
+		fi
+		"""
+
+rule adapter_clipping:
+	input:
+		phix_clipped = config["wdir"] + "/Fastq_phix_clipped/{sample}_1.fastq.gz"
+	output:
+		adapter_clipped = config["wdir"] + "/Fastq_adapter_clipped/{sample}_1.fastq.gz"
+	params:
+		indir = config["wdir"] + "/Fastq_phix_clipped",
+		outdir = config["wdir"] + "/Fastq_adapter_clipped",
+		sample = "{sample}"
+	threads: config["parallel_threads"]
+	conda: "busco-5.8.0"
+	log:
+		config["wdir"] + "/Fastq_adapter_clipped/logs/{sample}_adapter.log"
+	shell:
+		"""
+		if [ -f {params.indir}/{params.sample}_2.fastq.gz ]
+		then
+		  bbduk.sh in={input.phix_clipped} in2={params.indir}/{params.sample}_2.fastq.gz out={output.adapter_clipped} out2={params.outdir}/{params.sample}_2.fastq.gz ref=adapters k=23 mink=11 ktrim=r hdist=1 threads={threads} > {log} 2>&1
+		else
+		  bbduk.sh in={input.phix_clipped} out={output.adapter_clipped} ref=adapters k=23 mink=11 ktrim=r hdist=1 threads={threads} > {log} 2>&1  
+		fi
+		"""
+
+rule trimming:
+	input:
+		adapter_clipped = config["wdir"] + "/Fastq_adapter_clipped/{sample}_1.fastq.gz"
+	output:
+		trimmed = config["wdir"] + "/Fastq_trimmed/{sample}_1.fastq.gz"
+	params:
+		indir = config["wdir"] + "/Fastq_adapter_clipped",
+		outdir = config["wdir"] + "/Fastq_trimmed",
+		sample = "{sample}"
+	threads: config["parallel_threads"]
+	conda: "busco-5.8.0" 
+	log:
+		trimmed = config["wdir"] + "/Fastq_trimmed/logs/{sample}_trimmed.log"
+	shell:
+		"""
+		if [ -f {params.indir}/{params.sample}_2.fastq.gz ]
+		then
+		  bbduk.sh in={input.adapter_clipped} in2={params.indir}/{params.sample}_2.fastq.gz out={output.trimmed} out2={params.outdir}/{params.sample}_2.fastq.gz qtrim=w,4 trimq=15 minlength=55 trimpolyg=10 threads={threads} > {log} 2>&1
+		else
+		  bbduk.sh in={input.adapter_clipped} out={output.trimmed} qtrim=w,4 trimq=15 minlength=55 trimpolyg=10 threads={threads} > {log} 2>&1
+		fi
+		"""
+rule fastqc:
+	input:
+		trimmed = expand(config["wdir"] + "/Fastq_trimmed/{sample}_1.fastq.gz", sample = SAMPLES)
+	output: 
+		html = expand(config["wdir"] + "/Fastq_qc/{sample}_1_fastqc.html", sample = SAMPLES),
+		done = config["wdir"] + "/Fastq_qc/done"
+	params:
+		indir = config["wdir"] + "/Fastq_trimmed",
+		outdir = config["wdir"] + "/Fastq_qc"
+	threads: config["parallel_threads"]
+	conda: "qc-env"
+	shell:
+		"""
+		fastqc -t {threads} -o {params.outdir} {params.indir}/*.fastq.gz
+		touch {output.done}
+		"""
+
+rule genome_download:
+	output:
+		gtf = config["wdir"] + "/Genome/genome.gtf",
+		genome = config["wdir"] + "/Genome/genome.fa"
+	params:
+		gtf = config["gtf_link"],
+		fasta = config["genome_link"],
+		tmp_fa = config["wdir"] + "/Genome/genome.fa.gz",
+		tmp_gtf = config["wdir"] + "/Genome/genome.gtf.gz"
+	shell:
+		"""
+		wget -O {params.tmp_gtf} {params.gtf}
+		wget -O {params.tmp_fa} {params.fasta}
+		gunzip {params.tmp_gtf} {params.tmp_fa}
+		"""
+
+rule hisat2_index:
+	input:
+		genome = config["wdir"] + "/Genome/genome.fa",
+		gtf = config["wdir"] + "/Genome/genome.gtf"
+	output:
+		splice = config["wdir"] + "/Genome/index/genome_ss.txt",
+		exon = config["wdir"] + "/Genome/index/genome_exon.txt",
+		index = config["wdir"] + "/Genome/index/genome.1.ht2"
+	params:
+		index = config["wdir"] + "/Genome/index/genome"
+	conda: "braker-3.0.8"
+	log:
+		config["wdir"] + "/Genome/index/genome.log"
+	shell:
+		"""
+		hisat2_extract_exons.py {input.gtf} > {output.exon}
+		hisat2_extract_splice_sites.py {input.gtf} > {output.splice}
+		hisat2-build --exon {output.exon} --ss {output.splice} -f {input.genome} {params.index} > {log} 2>&1
+		"""
+
+rule mapping:
+	input:
+		trimmed = config["wdir"] + "/Fastq_trimmed/{sample}_1.fastq.gz",
+		index = config["wdir"] + "/Genome/index/genome.1.ht2"
+	output:
+		bam_hisat2 = config["wdir"] + "/Fastq_mapped/{sample}.bam"
+	params:
+		indir = config["wdir"] + "/Fastq_trimmed",
+		sample = "{sample}",
+		outdir = config["wdir"] + "/Fastq_mapped",
+		index = config["wdir"] + "/Genome/index/genome"
+	conda: "braker-3.0.8"
+	threads: config["parallel_threads"]
+	log:
+		config["wdir"] + "/Fastq_mapped/logs/{sample}.log"
+	shell:
+		"""
+		if [ -f {params.indir}/{params.sample}_2.fastq.gz ]
+		then
+		  hisat2 -p {threads} --no-unal -x {params.index} -1 {input.trimmed} -2 {params.indir}/{params.sample}_2.fastq.gz 2>{log} | samtools sort -T {params.outdir}/tmp_{params.sample} -@{threads} | samtools view -F2304 -f2 -m 45 -b -@{threads} -o {output.bam_hisat2}
+		else
+		  hisat2 -p {threads} --no-unal -x {params.index} -U {input.trimmed} 2>{log} | samtools sort -T {params.outdir}/tmp_{params.sample} -@{threads} | samtools view -F2304 -m 45 -b -@{threads} -o {output.bam_hisat2}
+		fi
+
+rule feature_counts:
+	input:
+		bam_hisat2 = config["wdir"] + "/Fastq_mapped/{sample}.bam",
+		gtf = config["wdir"] + "/Genome/genome.gtf"
+	output:
+		counts_hisat2 = config["wdir"] + "/Gene_expression/{sample}_counts.txt"
+	params:
+		trimdir = config["wdir"] + "/Fastq_trimmed",
+		sample = "{sample}"		
+	conda: "subread-2.0.6"
+	threads: config["parallel_threads"] 
+	log:
+		config["wdir"] + "/Gene_expression/logs/{sample}.log"
+	shell:
+		"""
+		if [ -f {params.trimdir}/{params.sample}_2.fastq.gz ]
+		then
+		  featureCounts -t exon -g gene_id -p --countReadPairs --fracOverlap 0.8 -a {input.gtf} -o {output.counts_hisat2} {input.bam_hisat2} > {log} 2>&1
+		else
+		  featureCounts -t exon -g gene_id --fracOverlap 0.8 -a {input.gtf} -o {output.counts_hisat2} {input.bam_hisat2} > {log} 2>&1
+		fi
+		"""
+
+rule collect_counts:
+	input:
+		counts_hisat2 = expand(config["wdir"] + "/Gene_expression/{sample}_counts.txt", sample = SAMPLES)
+	output:
+		done = config["wdir"] + "/Gene_expression/done"
+	shell:
+		"""
+		touch {output.done}
+		"""
