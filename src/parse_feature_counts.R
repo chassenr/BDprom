@@ -9,8 +9,7 @@ package.list <- c(
   "crayon",
   "optparse",
   "config",
-  "tidyverse",
-  "R.utils"
+  "tidyverse"
 )
 
 # Function to check if packages are installed
