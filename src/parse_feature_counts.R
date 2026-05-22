@@ -55,14 +55,14 @@ cat(" done\n")
 # define command line options
 option_list <- list(
   make_option(
-    c("-i", "--input_directory"),
+    c("-i", "--indir"),
     type = "character",
     default = NULL,
     help = "directory containing files from featurecounts",
     metavar = "character"
   ),
   make_option(
-    c("-o", "--Gene_expression_hst2.tsv"),
+    c("-o", "--output"),
     type = "character",
     default = NULL,
     help = "The output file name of the parsed featurecounts",
@@ -73,7 +73,7 @@ option_list <- list(
 opt_parser <- OptionParser(option_list = option_list)
 opt <- parse_args(opt_parser)
 
-if (is.null(opt$input_directory) | is.null(opt$output_file)) {
+if (is.null(opt$indir) | is.null(opt$output)) {
   print_help(opt_parser)
   stop("You must provide the name of the directory containing the featurecounts as input directory and a name for the output file.\n", call. = FALSE)
 }
@@ -93,7 +93,7 @@ names(file_list_hst2) <- gsub(pattern = "_counts.txt$", "", file_list_hst2)
 Gene_expression_hst2 <- lapply(
   names(file_list_hst2),
   function(x) {
-    tmp <- read.table(file_list_hst2[x], h = T, sep = "\t", row.names = 1)[, 6, drop = F]
+    tmp <- read.table(paste0(opt$indir, "/", file_list_hst2[x]), h = T, sep = "\t", row.names = 1)[, 6, drop = F]
     colnames(tmp) <- x
     return(tmp)
   }

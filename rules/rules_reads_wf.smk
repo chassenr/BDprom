@@ -12,7 +12,8 @@ rule all:
 		ena_filtered = config["wdir"] + "/ENA_out/RNAseq_filtered.tsv",
 		done = config["wdir"] + "/Fastq_downloaded/done",
 		fastqc = config["wdir"] + "/Fastq_qc/done",
-		parsed_counts = config["wdir"] + "/Parsed_counts/Gene_expression.csv"
+		parsed_counts = config["wdir"] + "/Parsed_counts/Gene_expression.csv",
+		summary_phix = config["wdir"] + "/Logs_summary/summary_phix.tsv"
 
 rule search_ena:
 	output:
@@ -244,14 +245,13 @@ rule parse_counts:
 		parsed_counts = config["wdir"] + "/Parsed_counts/Gene_expression.csv"
 	params:
 		indir = config["wdir"] + "/Gene_expression",
-		outdir = config["wdir"] + "/Parsed_counts",
 		script = "src/parse_feature_counts.R"
 	conda: "r-4.4.0"
 	log:
 		config["wdir"] + "/Parsed_counts/logs/parsed.log"
 	shell:
 		"""
-		{params.script} -i {params.indir} -o {params.outdir} >> {log} 2>&1	
+		{params.script} -i {params.indir} -o {output.parsed_counts} >> {log} 2>&1	
 		"""
 
 rule collect_logs:
@@ -261,18 +261,18 @@ rule collect_logs:
 		trimmed = expand(config["wdir"] + "/Fastq_trimmed/logs/{sample}_trimmed.log", sample = SAMPLES),
 		mapped = expand(config["wdir"] + "/Fastq_mapped/logs/{sample}.log", sample = SAMPLES)
 	output:
-		summary_phix = config["wdir"] + "/all_logs/{sample}_phix.tsv",
-		summary_adapter = config["wdir"] + "/all_logs/{sample}_adapter.tsv",
-		summary_trim = config["wdir"] + "/all_logs/{sample}_trimmed.tsv",
-		summary_mapped = config["wdir"] + "/all_logs/{sample}_mapped.tsv"
+		summary_phix = config["wdir"] + "/Logs_summary/summary_phix.tsv",
+		summary_adapter = config["wdir"] + "/Logs_summary/summary_adapter.tsv",
+		summary_trim = config["wdir"] + "/Logs_summary/summary_trimmed.tsv",
+		summary_mapped = config["wdir"] + "/Logs_summary/summary_mapped.tsv"
 	shell:
 		"""
-		echo -e 'run_accession\treads\treads_perc\tbp\tbp_perc' > {output.summary_phix} 
-		grep "Result" {input.phix} | sed -E 's/\s+/\t/g' | cut -f1,2,4,5,7 | sed -E 's/_phix\.log:Result://' | sed 's/(//g' >> {output.summary_phix}
-		echo -e 'run_accession\treads\treads_perc\tbp\tbp_perc' > {output.summary_adapter}
-		grep "Result" {input.adapter} | sed -E 's/\s+/\t/g' | sed -E 's/_adapter\.log:Result://g' | cut -f1,2,4,5,7 | sed -e 's/(//g' -e 's/%)//g' >> {output.summary_adapter}
-		echo -e 'run_accession\treads\treads_perc\tbp\tbp_perc' > {output.summary_trim}
-		grep "Result" {input.trimmed} | sed -E 's/\s+/\t/g' | sed -E 's/_trimmed\.log:Result://g' | cut -f1,2,4,5,7 | sed -e 's/(//g' -e 's/%)//g' >> {output.summary_trim}
-		echo -e 'run_acession\toverall_alignment_perc' > {output.summary_mapped}
-		grep "overall alignment rate" {input.mapped} | sed -E 's/\.log:/ /' -e 's/%//' | sed -E 's/\s+/\t/g' | cut -f1,2 >> {output.summary_mapped}
+		echo -e 'run_accession\\treads\\treads_perc\\tbp\\tbp_perc' > {output.summary_phix} 
+		grep "Result" {input.phix} | sed -E 's/\\s+/\\t/g' | sed -e 's/_phix\\.log:Result://' -e 's/^.*\\///' | cut -f1,2,4,5,7 | sed -e 's/(//g' -e 's/%)//g' >> {output.summary_phix}
+		echo -e 'run_accession\\treads\\treads_perc\\tbp\\tbp_perc' > {output.summary_adapter}
+		grep "Result" {input.adapter} | sed -E 's/\\s+/\\t/g' | sed -e 's/_adapter\\.log:Result://g' -e 's/^.*\\///' | cut -f1,2,4,5,7 | sed -e 's/(//g' -e 's/%)//g' >> {output.summary_adapter}
+		echo -e 'run_accession\\treads\\treads_perc\\tbp\\tbp_perc' > {output.summary_trim}
+		grep "Result" {input.trimmed} | sed -E 's/\\s+/\\t/g' | sed -e 's/_trimmed\\.log:Result://g' -e 's/^.*\\///' | cut -f1,2,4,5,7 | sed -e 's/(//g' -e 's/%)//g' >> {output.summary_trim}
+		echo -e 'run_acession\\toverall_alignment_perc' > {output.summary_mapped}
+		grep "overall alignment rate" {input.mapped} | sed -e 's/\\.log:/ /' -e 's/%//' -e 's/^.*\\///' | sed -E 's/\\s+/\\t/g' | cut -f1,2 >> {output.summary_mapped}
 		"""
