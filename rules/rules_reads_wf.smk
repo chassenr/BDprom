@@ -11,12 +11,10 @@ rule all:
 		ena_out = config["wdir"] + "/ENA_out/RNAseq_raw.tsv",
 		ena_filtered = config["wdir"] + "/ENA_out/RNAseq_filtered.tsv",
 		done = config["wdir"] + "/Fastq_downloaded/done",
-		phix_clipped = expand(config["wdir"] + "/Fastq_phix_clipped/{sample}_1.fastq.gz", sample = SAMPLES),
-		adapter_clipped = expand(config["wdir"] + "/Fastq_adapter_clipped/{sample}_1.fastq.gz", sample = SAMPLES),
-		html = expand(config["wdir"] + "/Fastq_qc/{sample}_1_fastqc.html", sample = SAMPLES),
 		fastqc = config["wdir"] + "/Fastq_qc/done",
-		bam = expand(config["wdir"] + "/Fastq_mapped/{sample}.bam", sample = SAMPLES),
-		done = config["wdir"] + "/Gene_expression/done"
+		parsed_counts = config["wdir"] + "/Parsed_counts/Gene_expression.csv",
+		summary_phix = config["wdir"] + "/Logs_summary/summary_phix.tsv"
+
 rule search_ena:
 	output:
 		ena_out = config["wdir"] + "/ENA_out/RNAseq_raw.tsv"
@@ -46,7 +44,6 @@ rule filter_metadata:
 		{params.script} -e {input.ena_out} -c {params.min_read_counts} -r {params.min_n_runs} -s {params.seq_technology} -p {params.only_keep_pubmed} -o {output.ena_filtered} >> {log} 2>&1
 		"""
 
-# define wildcards based on run accession
 RNAseq_filtered = pd.read_table(config["wdir"] + "/ENA_out/RNAseq_filtered.tsv", sep = "\t", header = 0, lineterminator = "\n") 
 SAMPLES = RNAseq_filtered.run_accession.to_list()
 
@@ -56,24 +53,23 @@ rule download_files:
 	output:
 		done = config["wdir"] + "/Fastq_downloaded/done"
 	params:
+		links = config["wdir"] + "/download_links.txt",
 		outdir = config["wdir"] + "/Fastq_downloaded"
 	log:
+		aria2 =config["wdir"] + "/Fastq_downloaded/aria2c.log",
 		stdout = config["wdir"] + "/Fastq_downloaded/md5_out.log",
 		stderr = config["wdir"] + "/Fastq_downloaded/md5_err.log"
 	shell:
 		"""
 		CN=$(head -1 {input.ena_filtered} | tr '\\t' '\\n' | grep -w -n "fastq_ftp" | cut -d':' -f1)
-		cut -f$CN {input.ena_filtered} | sed '1d' | tr ';' '\\n' | while read line
-		do
-		  wget -c $line -P {params.outdir}
-		done
+		cut -f$CN {input.ena_filtered} | sed '1d' | tr ';' '\\n' > {params.outdir}/{params.links}
+		aria2c -i {params.outdir}/{params.links} -c --dir {params.outdir} --max-tries=20 --retry-wait=5 --max-connection-per-server=1 --max-concurrent-downloads=16 -l {log.aria2} -V
 		MD5=$(head -1 {input.ena_filtered} | tr '\\t' '\\n' | grep -w -n "fastq_md5" | cut -d':' -f1)
 		paste <(cut -f$MD5 {input.ena_filtered} | sed '1d' | tr ';' '\\n') <(cut -f$CN {input.ena_filtered} | sed '1d' | tr ';' '\\n' | xargs -n1 basename) > {params.outdir}/md5_checksums.txt
 		md5sum -c {params.outdir}/md5_checksums.txt > {log.stdout} 2> {log.stderr}
 		touch {output.done}
 		"""
 
-# adapter clipping using bbduk
 rule phix_clipping:
 	input:
 		done = config["wdir"] + "/Fastq_downloaded/done"
@@ -119,7 +115,6 @@ rule adapter_clipping:
 		  bbduk.sh in={input.phix_clipped} out={output.adapter_clipped} ref=adapters k=23 mink=11 ktrim=r hdist=1 threads={threads} > {log} 2>&1  
 		fi
 		"""
-
 rule trimming:
 	input:
 		adapter_clipped = config["wdir"] + "/Fastq_adapter_clipped/{sample}_1.fastq.gz"
@@ -170,12 +165,12 @@ rule genome_download:
 		tmp_gtf = config["wdir"] + "/Genome/genome.gtf.gz"
 	shell:
 		"""
-		wget -O {params.tmp_gtf} {params.gtf}
-		wget -O {params.tmp_fa} {params.fasta}
+		arial2 -d {params.tmp_gtf} {params.gtf} -c true  
+		arial2 -d {params.tmp_fa} {params.fasta} -c true
 		gunzip {params.tmp_gtf} {params.tmp_fa}
 		"""
 
-rule hisat2_index:
+rule index:
 	input:
 		genome = config["wdir"] + "/Genome/genome.fa",
 		gtf = config["wdir"] + "/Genome/genome.gtf"
@@ -200,7 +195,7 @@ rule mapping:
 		trimmed = config["wdir"] + "/Fastq_trimmed/{sample}_1.fastq.gz",
 		index = config["wdir"] + "/Genome/index/genome.1.ht2"
 	output:
-		bam_hisat2 = config["wdir"] + "/Fastq_mapped/{sample}.bam"
+		bam = config["wdir"] + "/Fastq_mapped/{sample}.bam"
 	params:
 		indir = config["wdir"] + "/Fastq_trimmed",
 		sample = "{sample}",
@@ -214,17 +209,18 @@ rule mapping:
 		"""
 		if [ -f {params.indir}/{params.sample}_2.fastq.gz ]
 		then
-		  hisat2 -p {threads} --no-unal -x {params.index} -1 {input.trimmed} -2 {params.indir}/{params.sample}_2.fastq.gz 2>{log} | samtools sort -T {params.outdir}/tmp_{params.sample} -@{threads} | samtools view -F2304 -f2 -m 45 -b -@{threads} -o {output.bam_hisat2}
+		  hisat2 -p {threads} --no-unal -x {params.index} -1 {input.trimmed} -2 {params.indir}/{params.sample}_2.fastq.gz 2>{log} | samtools sort -T {params.outdir}/tmp_{params.sample} -@{threads} | samtools view -F2304 -f2 -m 45 -b -@{threads} -o {output.bam}
 		else
-		  hisat2 -p {threads} --no-unal -x {params.index} -U {input.trimmed} 2>{log} | samtools sort -T {params.outdir}/tmp_{params.sample} -@{threads} | samtools view -F2304 -m 45 -b -@{threads} -o {output.bam_hisat2}
+		  hisat2 -p {threads} --no-unal -x {params.index} -U {input.trimmed} 2>{log} | samtools sort -T {params.outdir}/tmp_{params.sample} -@{threads} | samtools view -F2304 -m 45 -b -@{threads} -o {output.bam}
 		fi
+		"""
 
 rule feature_counts:
 	input:
-		bam_hisat2 = config["wdir"] + "/Fastq_mapped/{sample}.bam",
+		bam = config["wdir"] + "/Fastq_mapped/{sample}.bam",
 		gtf = config["wdir"] + "/Genome/genome.gtf"
 	output:
-		counts_hisat2 = config["wdir"] + "/Gene_expression/{sample}_counts.txt"
+		counts = config["wdir"] + "/Gene_expression/{sample}_counts.txt"
 	params:
 		trimdir = config["wdir"] + "/Fastq_trimmed",
 		sample = "{sample}"		
@@ -236,18 +232,47 @@ rule feature_counts:
 		"""
 		if [ -f {params.trimdir}/{params.sample}_2.fastq.gz ]
 		then
-		  featureCounts -t exon -g gene_id -p --countReadPairs --fracOverlap 0.8 -a {input.gtf} -o {output.counts_hisat2} {input.bam_hisat2} > {log} 2>&1
+		  featureCounts -t exon -g gene_id -p --countReadPairs --fracOverlap 0.8 -a {input.gtf} -o {output.counts} {input.bam} > {log} 2>&1
 		else
-		  featureCounts -t exon -g gene_id --fracOverlap 0.8 -a {input.gtf} -o {output.counts_hisat2} {input.bam_hisat2} > {log} 2>&1
+		  featureCounts -t exon -g gene_id --fracOverlap 0.8 -a {input.gtf} -o {output.counts} {input.bam} > {log} 2>&1
 		fi
 		"""
 
-rule collect_counts:
+rule parse_counts:
 	input:
-		counts_hisat2 = expand(config["wdir"] + "/Gene_expression/{sample}_counts.txt", sample = SAMPLES)
+		counts = expand(config["wdir"] + "/Gene_expression/{sample}_counts.txt", sample = SAMPLES)
 	output:
-		done = config["wdir"] + "/Gene_expression/done"
+		parsed_counts = config["wdir"] + "/Parsed_counts/Gene_expression.csv"
+	params:
+		indir = config["wdir"] + "/Gene_expression",
+		script = "src/parse_feature_counts.R"
+	conda: "r-4.4.0"
+	log:
+		config["wdir"] + "/Parsed_counts/logs/parsed.log"
 	shell:
 		"""
-		touch {output.done}
+		{params.script} -i {params.indir} -o {output.parsed_counts} >> {log} 2>&1	
+		"""
+
+rule collect_logs:
+	input:
+		phix = expand(config["wdir"] + "/Fastq_phix_clipped/logs/{sample}_phix.log", sample = SAMPLES),
+		adapter = expand(config["wdir"] + "/Fastq_adapter_clipped/logs/{sample}_adapter.log", sample = SAMPLES), 
+		trimmed = expand(config["wdir"] + "/Fastq_trimmed/logs/{sample}_trimmed.log", sample = SAMPLES),
+		mapped = expand(config["wdir"] + "/Fastq_mapped/logs/{sample}.log", sample = SAMPLES)
+	output:
+		summary_phix = config["wdir"] + "/Logs_summary/summary_phix.tsv",
+		summary_adapter = config["wdir"] + "/Logs_summary/summary_adapter.tsv",
+		summary_trim = config["wdir"] + "/Logs_summary/summary_trimmed.tsv",
+		summary_mapped = config["wdir"] + "/Logs_summary/summary_mapped.tsv"
+	shell:
+		"""
+		echo -e 'run_accession\\treads\\treads_perc\\tbp\\tbp_perc' > {output.summary_phix} 
+		grep "Result" {input.phix} | sed -E 's/\\s+/\\t/g' | sed -e 's/_phix\\.log:Result://' -e 's/^.*\\///' | cut -f1,2,4,5,7 | sed -e 's/(//g' -e 's/%)//g' >> {output.summary_phix}
+		echo -e 'run_accession\\treads\\treads_perc\\tbp\\tbp_perc' > {output.summary_adapter}
+		grep "Result" {input.adapter} | sed -E 's/\\s+/\\t/g' | sed -e 's/_adapter\\.log:Result://g' -e 's/^.*\\///' | cut -f1,2,4,5,7 | sed -e 's/(//g' -e 's/%)//g' >> {output.summary_adapter}
+		echo -e 'run_accession\\treads\\treads_perc\\tbp\\tbp_perc' > {output.summary_trim}
+		grep "Result" {input.trimmed} | sed -E 's/\\s+/\\t/g' | sed -e 's/_trimmed\\.log:Result://g' -e 's/^.*\\///' | cut -f1,2,4,5,7 | sed -e 's/(//g' -e 's/%)//g' >> {output.summary_trim}
+		echo -e 'run_acession\\toverall_alignment_perc' > {output.summary_mapped}
+		grep "overall alignment rate" {input.mapped} | sed -e 's/\\.log:/ /' -e 's/%//' -e 's/^.*\\///' | sed -E 's/\\s+/\\t/g' | cut -f1,2 >> {output.summary_mapped}
 		"""

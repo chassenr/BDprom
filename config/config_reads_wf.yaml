@@ -5,7 +5,7 @@ wdir: "/otc-genomics/IOWseq000082_BDprom/Intermediate_results"
 
 # configure threads for parallelization
 threads: 1 # default if threads are not specified in the rule
-parallel_threads: 96
+parallel_threads: 192
 
 
 #specify the organism from which to download the .gtf.gz and .fasta files
@@ -20,6 +20,6 @@ tax_id: "2850"
 min_read_counts: 5000000
 min_n_runs: 5
 seq_technology: "ILLUMINA,BGISEQ,DNBSEQ"
-only_keep_pubmed: "TRUE"
+only_keep_pubmed: "FALSE"
 
 
