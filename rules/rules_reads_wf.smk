@@ -10,10 +10,12 @@ rule all:
 	input:
 		ena_out = config["wdir"] + "/ENA_out/RNAseq_raw.tsv",
 		ena_filtered = config["wdir"] + "/ENA_out/RNAseq_filtered.tsv",
-		done = config["wdir"] + "/Fastq_downloaded/done",
-		fastqc = config["wdir"] + "/Fastq_qc/done",
-		parsed_counts = config["wdir"] + "/Parsed_counts/Gene_expression.csv",
-		summary_phix = config["wdir"] + "/Logs_summary/summary_phix.tsv"
+		# pmc = config["wdir"] + "/Abstracts/pmc_abstracts.txt"
+		#pubmed = config["wdir"] + "/Abstracts/pubmed_abstracts.txt",
+		done = config["wdir"] + "/Fastq_downloaded/done"
+		# fastqc = config["wdir"] + "/Fastq_qc/done"
+		# parsed_counts = config["wdir"] + "/Parsed_counts/Gene_expression.csv",
+		# summary_phix = config["wdir"] + "/Logs_summary/summary_phix.tsv"
 
 rule search_ena:
 	output:
@@ -25,7 +27,7 @@ rule search_ena:
 		curl -X POST -H "Content-Type: application/x-www-form-urlencoded" -d 'result=read_run&query=tax_tree({params.tax_id})%20AND%20library_source%3D%22transcriptomic%22%20AND%20library_strategy%3D%22rna-seq%22&fields=run_accession%2Cexperiment_title%2Ctax_id%2Clibrary_source%2Cbase_count%2Cbio_material%2Cbroad_scale_environmental_context%2Cbroker_name%2Ccenter_name%2Cchecklist%2Ccollected_by%2Ccollection_date%2Ccollection_date_end%2Ccollection_date_start%2Ccountry%2Cdescription%2Cenvironmental_medium%2Cexperiment_accession%2Cexperiment_alias%2Cfastq_bytes%2Cfastq_ftp%2Cfastq_md5%2Cfirst_created%2Cfirst_public%2Cidentified_by%2Cinstrument_model%2Cinstrument_platform%2Cinvestigation_type%2Cisolate%2Cisolation_source%2Clast_updated%2Clat%2Clibrary_construction_protocol%2Clibrary_gen_protocol%2Clibrary_layout%2Clibrary_max_fragment_size%2Clibrary_min_fragment_size%2Clibrary_name%2Clibrary_selection%2Clibrary_strategy%2Clocal_environmental_context%2Clocation%2Clocation_end%2Clocation_start%2Clon%2Cmarine_region%2Cncbi_reporting_standard%2Cnominal_length%2Cnominal_sdev%2Cproject_name%2Cread_count%2Cread_strand%2Crna_integrity_num%2Crna_purity_230_ratio%2Crna_purity_280_ratio%2Crun_alias%2Csample_accession%2Csample_alias%2Csample_collection%2Csample_description%2Csample_material%2Csample_storage%2Csample_storage_processing%2Csample_title%2Csampling_campaign%2Csampling_platform%2Csampling_site%2Cscientific_name%2Csecondary_project%2Csecondary_sample_accession%2Csecondary_study_accession%2Csequencing_method%2Cstudy_accession%2Cstudy_alias%2Cstudy_title%2Csub_species%2Csub_strain%2Csubmission_accession%2Csubmission_tool%2Ctag%2Ctarget_gene%2Ctax_lineage%2Ctaxonomic_classification&format=tsv' "https://www.ebi.ac.uk/ena/portal/api/search" > {output.ena_out}
 		"""
 
-rule filter_metadata:
+checkpoint filter_metadata:
 	input:
 		ena_out = config["wdir"] + "/ENA_out/RNAseq_raw.tsv"
 	output:
@@ -44,8 +46,49 @@ rule filter_metadata:
 		{params.script} -e {input.ena_out} -c {params.min_read_counts} -r {params.min_n_runs} -s {params.seq_technology} -p {params.only_keep_pubmed} -o {output.ena_filtered} >> {log} 2>&1
 		"""
 
-RNAseq_filtered = pd.read_table(config["wdir"] + "/ENA_out/RNAseq_filtered.tsv", sep = "\t", header = 0, lineterminator = "\n") 
-SAMPLES = RNAseq_filtered.run_accession.to_list()
+if config["only_keep_pubmed"] == "TRUE":
+	rule get_abstract_pmc:
+		input: 
+			ena_filtered = config["wdir"] + "/ENA_out/RNAseq_filtered.tsv"
+		output:
+			pmc = config["wdir"] + "/Abstracts/pmc_abstracts.txt"
+		params:
+			outdir = config["wdir"] + "/Abstracts/tmp_pmc",
+			script = "src/parse_abstracts.sh"
+		conda: "anvio-8"
+		shell:
+			"""
+			mkdir -p {params.outdir}
+			echo -E "pmc_id\ttitle\tabstract" > {output.pmc}
+			CN=$(head -1 {input.ena_filtered} | tr '\\t' '\\n' | grep -i -w -n "EuropePMC" | cut -d':' -f1)
+			cut -f$CN {input.ena_filtered} | sed '1d' | tr ';' '\n' | sort -u | sed '/^NA$/d' | while read line
+			do
+		  	  efetch -db pmc -format medline -mode text -id $line > {params.outdir}/$line.efetch
+			  {params.script} {params.outdir}/$line.efetch >> {output.pmc}
+			done
+			"""
+
+if config["only_keep_pubmed"] == "TRUE":
+	rule get_abstract_pubmed:
+		input: 
+			ena_filtered = config["wdir"] + "/ENA_out/RNAseq_filtered.tsv"
+		output:
+			pubmed = config["wdir"] + "/Abstracts/pubmed_abstracts.txt"
+		params:
+			outdir = config["wdir"] + "/Abstracts/tmp_pubmed",
+			script = "src/parse_abstracts.sh"
+		conda: "anvio-8"
+		shell:
+			"""
+			mkdir -p {params.outdir}
+			echo -E "pubmed_id\ttitle\tabstract" > {output.pubmed}
+			CN=$(head -1 {input.ena_filtered} | tr '\\t' '\\n' | grep -i -w -n "PubMed" | cut -d':' -f1)
+			cut -f$CN {input.ena_filtered} | sed '1d' | tr ';' '\n' | sort -u | sed '/^NA$/d' | while read line
+			do
+		  	  efetch -db pubmed -format medline -mode text -id $line > {params.outdir}/$line.efetch
+		  	  {params.script} {params.outdir}/$line.efetch >> {output.pubmed}
+			done
+			"""
 
 rule download_files:
 	input:
@@ -53,21 +96,29 @@ rule download_files:
 	output:
 		done = config["wdir"] + "/Fastq_downloaded/done"
 	params:
-		links = config["wdir"] + "/download_links.txt",
 		outdir = config["wdir"] + "/Fastq_downloaded"
+	conda: "foldseek-10.941cd33"
 	log:
-		aria2 =config["wdir"] + "/Fastq_downloaded/aria2c.log",
-		stdout = config["wdir"] + "/Fastq_downloaded/md5_out.log",
-		stderr = config["wdir"] + "/Fastq_downloaded/md5_err.log"
+		aria2 =config["wdir"] + "/Fastq_downloaded/logs/aria2c.log",
+		stdout = config["wdir"] + "/Fastq_downloaded/logs/md5_out.log",
+		stderr = config["wdir"] + "/Fastq_downloaded/logs/md5_err.log"
 	shell:
 		"""
+		#set -x
 		CN=$(head -1 {input.ena_filtered} | tr '\\t' '\\n' | grep -w -n "fastq_ftp" | cut -d':' -f1)
-		cut -f$CN {input.ena_filtered} | sed '1d' | tr ';' '\\n' > {params.outdir}/{params.links}
-		aria2c -i {params.outdir}/{params.links} -c --dir {params.outdir} --max-tries=20 --retry-wait=5 --max-connection-per-server=1 --max-concurrent-downloads=16 -l {log.aria2} -V
+		cut -f$CN {input.ena_filtered} | sed '1d' | tr ';' '\\n' | sed 's/^/http:\\/\\//' > {params.outdir}/download_links.txt
+		(aria2c -i {params.outdir}/download_links.txt -c --dir {params.outdir} --max-tries=20 --retry-wait=5 --max-connection-per-server=1 --max-concurrent-downloads=16 -V >> {log.aria2} 2>&1) || true
 		MD5=$(head -1 {input.ena_filtered} | tr '\\t' '\\n' | grep -w -n "fastq_md5" | cut -d':' -f1)
-		paste <(cut -f$MD5 {input.ena_filtered} | sed '1d' | tr ';' '\\n') <(cut -f$CN {input.ena_filtered} | sed '1d' | tr ';' '\\n' | xargs -n1 basename) > {params.outdir}/md5_checksums.txt
-		md5sum -c {params.outdir}/md5_checksums.txt > {log.stdout} 2> {log.stderr}
-		touch {output.done}
+		paste <(cut -f$MD5 {input.ena_filtered} | sed '1d' | tr ';' '\\n') <(cut -f$CN {input.ena_filtered} | sed '1d' | tr ';' '\\n' | xargs -n1 basename | sed "s|^|{params.outdir}/|") > {params.outdir}/md5_checksums.txt
+		(md5sum -c {params.outdir}/md5_checksums.txt > {log.stdout} 2> {log.stderr}) || true
+		if [ $(wc -l < {params.outdir}/md5_checksums.txt) == $(grep -c "OK" {log.stdout}) ]
+		then
+		  echo "All downloaded files passed checksums."
+		  touch {output.done}
+		else
+		  echo "Not all files were downloaded correctly. Please remove them and repeat the download.\n"
+		  grep "FAILED" {log.stdout}
+		fi
 		"""
 
 rule phix_clipping:
@@ -137,11 +188,17 @@ rule trimming:
 		  bbduk.sh in={input.adapter_clipped} out={output.trimmed} qtrim=w,4 trimq=15 minlength=55 trimpolyg=10 threads={threads} > {log} 2>&1
 		fi
 		"""
+
+def aggregate_fastqc (wildcards):
+	Check_rnaseq_filtered = checkpoints.filter_metadata.get().output.ena_filtered
+	RNAseq_filtered = pd.read_table(Check_rnaseq_filtered, sep = "\t", header = 0, lineterminator = "\n") 
+	SAMPLES = RNAseq_filtered.run_accession.to_list()
+	return expand(config["wdir"] + "/Fastq_trimmed/{sample}_1.fastq.gz", sample = SAMPLES)
+		
 rule fastqc:
 	input:
-		trimmed = expand(config["wdir"] + "/Fastq_trimmed/{sample}_1.fastq.gz", sample = SAMPLES)
+		trimmed = aggregate_fastqc
 	output: 
-		html = expand(config["wdir"] + "/Fastq_qc/{sample}_1_fastqc.html", sample = SAMPLES),
 		done = config["wdir"] + "/Fastq_qc/done"
 	params:
 		indir = config["wdir"] + "/Fastq_trimmed",
@@ -238,9 +295,15 @@ rule feature_counts:
 		fi
 		"""
 
+def aggregate_counts (wildcards):
+	Check_rnaseq_filtered = checkpoints.filter_metadata.get().output.ena_filtered
+	RNAseq_filtered = pd.read_table(Check_rnaseq_filtered, sep = "\t", header = 0, lineterminator = "\n") 
+	SAMPLES = RNAseq_filtered.run_accession.to_list()
+	return expand(config["wdir"] + "/Gene_expression/{sample}_counts.txt", sample = SAMPLES)
+
 rule parse_counts:
 	input:
-		counts = expand(config["wdir"] + "/Gene_expression/{sample}_counts.txt", sample = SAMPLES)
+		counts = aggregate_counts
 	output:
 		parsed_counts = config["wdir"] + "/Parsed_counts/Gene_expression.csv"
 	params:
@@ -254,12 +317,36 @@ rule parse_counts:
 		{params.script} -i {params.indir} -o {output.parsed_counts} >> {log} 2>&1	
 		"""
 
+def aggregate_phix (wildcards):
+	Check_rnaseq_filtered = checkpoints.filter_metadata.get().output.ena_filtered
+	RNAseq_filtered = pd.read_table(Check_rnaseq_filtered, sep = "\t", header = 0, lineterminator = "\n") 
+	SAMPLES = RNAseq_filtered.run_accession.to_list()
+	return expand(config["wdir"] + "/Fastq_phix_clipped/logs/{sample}_phix.log", sample = SAMPLES)
+
+def aggregate_adapter (wildcards):
+	Check_rnaseq_filtered = checkpoints.filter_metadata.get().output.ena_filtered
+	RNAseq_filtered = pd.read_table(Check_rnaseq_filtered, sep = "\t", header = 0, lineterminator = "\n") 
+	SAMPLES = RNAseq_filtered.run_accession.to_list()
+	return expand(config["wdir"] + "/Fastq_adapter_clipped/logs/{sample}_adapter.log", sample = SAMPLES)
+
+def aggregate_trimmed (wildcards):
+	Check_rnaseq_filtered = checkpoints.filter_metadata.get().output.ena_filtered
+	RNAseq_filtered = pd.read_table(Check_rnaseq_filtered, sep = "\t", header = 0, lineterminator = "\n") 
+	SAMPLES = RNAseq_filtered.run_accession.to_list()
+	return expand(config["wdir"] + "/Fastq_trimmed/logs/{sample}_trimmed.log", sample = SAMPLES)
+
+def aggregate_mapped (wildcards):
+	Check_rnaseq_filtered = checkpoints.filter_metadata.get().output.ena_filtered
+	RNAseq_filtered = pd.read_table(Check_rnaseq_filtered, sep = "\t", header = 0, lineterminator = "\n") 
+	SAMPLES = RNAseq_filtered.run_accession.to_list()
+	return expand(config["wdir"] + "/Fastq_mapped/logs/{sample}.log", sample = SAMPLES)
+
 rule collect_logs:
 	input:
-		phix = expand(config["wdir"] + "/Fastq_phix_clipped/logs/{sample}_phix.log", sample = SAMPLES),
-		adapter = expand(config["wdir"] + "/Fastq_adapter_clipped/logs/{sample}_adapter.log", sample = SAMPLES), 
-		trimmed = expand(config["wdir"] + "/Fastq_trimmed/logs/{sample}_trimmed.log", sample = SAMPLES),
-		mapped = expand(config["wdir"] + "/Fastq_mapped/logs/{sample}.log", sample = SAMPLES)
+		phix = aggregate_phix,
+		adapter = aggregate_adapter, 
+		trimmed = aggregate_trimmed, 
+		mapped = aggregate_mapped
 	output:
 		summary_phix = config["wdir"] + "/Logs_summary/summary_phix.tsv",
 		summary_adapter = config["wdir"] + "/Logs_summary/summary_adapter.tsv",
