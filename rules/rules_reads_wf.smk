@@ -12,9 +12,9 @@ rule all:
 		ena_filtered = config["wdir"] + "/ENA_out/RNAseq_filtered.tsv",
 		# pmc = config["wdir"] + "/Abstracts/pmc_abstracts.txt"
 		#pubmed = config["wdir"] + "/Abstracts/pubmed_abstracts.txt",
-		done = config["wdir"] + "/Fastq_downloaded/done"
+		done = config["wdir"] + "/Fastq_downloaded/done",
 		# fastqc = config["wdir"] + "/Fastq_qc/done"
-		# parsed_counts = config["wdir"] + "/Parsed_counts/Gene_expression.csv",
+		parsed_counts = config["wdir"] + "/Parsed_counts/Gene_expression.csv"
 		# summary_phix = config["wdir"] + "/Logs_summary/summary_phix.tsv"
 
 rule search_ena:
@@ -104,7 +104,7 @@ rule download_files:
 		stderr = config["wdir"] + "/Fastq_downloaded/logs/md5_err.log"
 	shell:
 		"""
-		#set -x
+		set -x
 		CN=$(head -1 {input.ena_filtered} | tr '\\t' '\\n' | grep -w -n "fastq_ftp" | cut -d':' -f1)
 		cut -f$CN {input.ena_filtered} | sed '1d' | tr ';' '\\n' | sed 's/^/http:\\/\\//' > {params.outdir}/download_links.txt
 		(aria2c -i {params.outdir}/download_links.txt -c --dir {params.outdir} --max-tries=20 --retry-wait=5 --max-connection-per-server=1 --max-concurrent-downloads=16 -V >> {log.aria2} 2>&1) || true
@@ -181,11 +181,14 @@ rule trimming:
 		trimmed = config["wdir"] + "/Fastq_trimmed/logs/{sample}_trimmed.log"
 	shell:
 		"""
+		#set -x
+		MAXLENGTH=$(zcat {input.adapter_clipped} | head -4000 | sed -n '2~4p' | perl -nle 'print length' | sort -k1,1gr | head -1 || true)
+		ML=$(bc <<< "${{MAXLENGTH}} * 3 / 4")
 		if [ -f {params.indir}/{params.sample}_2.fastq.gz ]
 		then
-		  bbduk.sh in={input.adapter_clipped} in2={params.indir}/{params.sample}_2.fastq.gz out={output.trimmed} out2={params.outdir}/{params.sample}_2.fastq.gz qtrim=w,4 trimq=15 minlength=55 trimpolyg=10 threads={threads} > {log} 2>&1
+		  bbduk.sh in={input.adapter_clipped} in2={params.indir}/{params.sample}_2.fastq.gz out={output.trimmed} out2={params.outdir}/{params.sample}_2.fastq.gz qtrim=w,4 trimq=15 minlength=$ML trimpolyg=10 threads={threads} > {log} 2>&1
 		else
-		  bbduk.sh in={input.adapter_clipped} out={output.trimmed} qtrim=w,4 trimq=15 minlength=55 trimpolyg=10 threads={threads} > {log} 2>&1
+		  bbduk.sh in={input.adapter_clipped} out={output.trimmed} qtrim=w,4 trimq=15 minlength=$ML trimpolyg=10 threads={threads} > {log} 2>&1
 		fi
 		"""
 
@@ -216,15 +219,17 @@ rule genome_download:
 		gtf = config["wdir"] + "/Genome/genome.gtf",
 		genome = config["wdir"] + "/Genome/genome.fa"
 	params:
+		outdir = config["wdir"] + "/Genome",
 		gtf = config["gtf_link"],
 		fasta = config["genome_link"],
 		tmp_fa = config["wdir"] + "/Genome/genome.fa.gz",
 		tmp_gtf = config["wdir"] + "/Genome/genome.gtf.gz"
+	conda: "foldseek-10.941cd33"
 	shell:
-		"""
-		arial2 -d {params.tmp_gtf} {params.gtf} -c true  
-		arial2 -d {params.tmp_fa} {params.fasta} -c true
-		gunzip {params.tmp_gtf} {params.tmp_fa}
+ 		"""
+		wget -O {params.tmp_gtf} {params.gtf}
+		wget -O {params.tmp_fa} {params.fasta}
+		gunzip {params.tmp_gtf} {params.tmp_fa} 
 		"""
 
 rule index:
@@ -266,9 +271,9 @@ rule mapping:
 		"""
 		if [ -f {params.indir}/{params.sample}_2.fastq.gz ]
 		then
-		  hisat2 -p {threads} --no-unal -x {params.index} -1 {input.trimmed} -2 {params.indir}/{params.sample}_2.fastq.gz 2>{log} | samtools sort -T {params.outdir}/tmp_{params.sample} -@{threads} | samtools view -F2304 -f2 -m 45 -b -@{threads} -o {output.bam}
+		  hisat2 -p {threads} --no-unal -x {params.index} -1 {input.trimmed} -2 {params.indir}/{params.sample}_2.fastq.gz 2>{log} | samtools sort -T {params.outdir}/tmp_{params.sample} -@{threads} | samtools view -F2304 -f2 -b -@{threads} -o {output.bam}
 		else
-		  hisat2 -p {threads} --no-unal -x {params.index} -U {input.trimmed} 2>{log} | samtools sort -T {params.outdir}/tmp_{params.sample} -@{threads} | samtools view -F2304 -m 45 -b -@{threads} -o {output.bam}
+		  hisat2 -p {threads} --no-unal -x {params.index} -U {input.trimmed} 2>{log} | samtools sort -T {params.outdir}/tmp_{params.sample} -@{threads} | samtools view -F2304 -b -@{threads} -o {output.bam}
 		fi
 		"""
 
