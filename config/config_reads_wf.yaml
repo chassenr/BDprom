@@ -1,20 +1,19 @@
 ##manual search: type curl -d paste the url link -o write the output directory
 
 # specify file path to analysis directory
-wdir: "/otc-genomics/IOWseq000082_BDprom/Intermediate_results"
+wdir: "/otc-genomics/IOWseq000082_BDprom/Intermediate_results/Thalassiosira_pseudonana"
 
 # configure threads for parallelization
 threads: 1 # default if threads are not specified in the rule
-parallel_threads: 192
+parallel_threads: 48
 
 
 #specify the organism from which to download the .gtf.gz and .fasta files
-gtf_link: "https://ftp.ensemblgenomes.ebi.ac.uk/pub/protists/current/gtf/phaeodactylum_tricornutum/Phaeodactylum_tricornutum.ASM15095v2.62.gtf.gz"
-genome_link: "http://ftp.ensemblgenomes.org/pub/protists/current/fasta/phaeodactylum_tricornutum/dna/Phaeodactylum_tricornutum.ASM15095v2.dna.toplevel.fa.gz"
-
+gtf_link: "http://ftp.ensemblgenomes.org/pub/protists/current/gtf/thalassiosira_pseudonana/Thalassiosira_pseudonana.ASM14940v2.62.gtf.gz"
+genome_link: "http://ftp.ensemblgenomes.org/pub/protists/current/fasta/thalassiosira_pseudonana/dna/Thalassiosira_pseudonana.ASM14940v2.dna_sm.toplevel.fa.gz"
 
 # Specify the taxon for which to retrieve RNA-seq experiments
-tax_id: "2850"
+tax_id: "35128"
 
 # sepcify thresholds for filtering metadata
 min_read_counts: 5000000

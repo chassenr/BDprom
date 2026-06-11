@@ -4,7 +4,12 @@ import pandas as pd
 
 # specify config file
 # change this path to the location of the config file with your project specific settings
-configfile: "/otc-genomics/IOWseq000082_BDprom/Intermediate_results/Repos/BDprom/config/config_reads_wf.yaml"
+configfile: "/otc-genomics/IOWseq000082_BDprom/Intermediate_results/Repos/tmp/BDprom/config/config_reads_wf.yaml"
+
+def aggregate_study (wildcards):
+        Check_rnaseq_filtered = checkpoints.filter_metadata.get().output.ena_filtered
+        RNAseq_filtered = pd.read_table(Check_rnaseq_filtered, sep = "\t", header = 0, lineterminator = "\n")
+        STUDY = RNAseq_filtered.study_accession.unique().to_list()
 
 rule all:
 	input:
@@ -13,9 +18,10 @@ rule all:
 		# pmc = config["wdir"] + "/Abstracts/pmc_abstracts.txt"
 		#pubmed = config["wdir"] + "/Abstracts/pubmed_abstracts.txt",
 		done = config["wdir"] + "/Fastq_downloaded/done",
-		# fastqc = config["wdir"] + "/Fastq_qc/done"
-		parsed_counts = config["wdir"] + "/Parsed_counts/Gene_expression.csv"
-		# summary_phix = config["wdir"] + "/Logs_summary/summary_phix.tsv"
+		# fastqc = config["wdir"] + "/Fastq_qc/done",
+		#parsed_counts = config["wdir"] + "/Parsed_counts/Gene_expression.csv",
+		parsed_counts = config["wdir"] + "/Parsed_counts/Gene_expression_{study}.csv",
+		summary_phix = config["wdir"] + "/Logs_summary/summary_phix.tsv"
 
 rule search_ena:
 	output:
@@ -305,12 +311,13 @@ def aggregate_counts (wildcards):
 	RNAseq_filtered = pd.read_table(Check_rnaseq_filtered, sep = "\t", header = 0, lineterminator = "\n") 
 	SAMPLES = RNAseq_filtered.run_accession.to_list()
 	return expand(config["wdir"] + "/Gene_expression/{sample}_counts.txt", sample = SAMPLES)
-
+	#To have the output file (.csv) per study accession, append the study wildcard just before .csv: also  add the aggregate function name of study (defined just before rule all:) as an input.
 rule parse_counts:
 	input:
-		counts = aggregate_counts
+		counts = aggregate_counts,
+		study = aggregate_study
 	output:
-		parsed_counts = config["wdir"] + "/Parsed_counts/Gene_expression.csv"
+		parsed_counts = config["wdir"] + "/Parsed_counts/Gene_expression_{study}.csv"
 	params:
 		indir = config["wdir"] + "/Gene_expression",
 		script = "src/parse_feature_counts.R"

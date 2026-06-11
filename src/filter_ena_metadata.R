@@ -124,7 +124,13 @@ if (is.null(opt$ena_search_out) | is.null(opt$output)) {
 seq_tech <- strsplit(opt$seq_tech, ",")[[1]]
 
 # reading data
-ENA_curl <- read.table(file = opt$ena_search_out, comment.char = "", quote = "", sep = "\t", h = T)
+ENA_curl <- read.table(file = opt$ena_search_out, comment.char = "", quote = "", sep = "\t", h = T) |>
+  filter(
+    run_accession != "", 
+    experiment_accession != "",
+    sample_accession != "",
+    study_accession != ""
+  )
 # head(ENA_curl)
 # colnames(ENA_curl)
 
