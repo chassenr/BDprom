@@ -10,7 +10,7 @@ parallel_threads: 48
 
 #specify the organism from which to download the .gtf.gz and .fasta files
 gtf_link: "http://ftp.ensemblgenomes.org/pub/protists/current/gtf/thalassiosira_pseudonana/Thalassiosira_pseudonana.ASM14940v2.62.gtf.gz"
-genome_link: "http://ftp.ensemblgenomes.org/pub/protists/current/fasta/thalassiosira_pseudonana/dna/Thalassiosira_pseudonana.ASM14940v2.dna_sm.toplevel.fa.gz"
+genome_link: "http://ftp.ensemblgenomes.org/pub/protists/current/fasta/thalassiosira_pseudonana/dna/Thalassiosira_pseudonana.ASM14940v2.dna_sm.toplevel.fa.gz" #use the link without _sm
 
 # Specify the taxon for which to retrieve RNA-seq experiments
 tax_id: "35128"

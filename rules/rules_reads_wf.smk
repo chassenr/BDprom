@@ -1,4 +1,4 @@
-# To import the RNAseq_filteredRNAseq_filtered.tsv file two packages are needed:
+# To import the RNAseq_filteredR config["wdir"] + "/Parsed_counts/NAseq_filtered.tsv file two packages are needed:
 import glob
 import pandas as pd
 
@@ -6,22 +6,23 @@ import pandas as pd
 # change this path to the location of the config file with your project specific settings
 configfile: "/otc-genomics/IOWseq000082_BDprom/Intermediate_results/Repos/tmp/BDprom/config/config_reads_wf.yaml"
 
-def aggregate_study (wildcards):
-        Check_rnaseq_filtered = checkpoints.filter_metadata.get().output.ena_filtered
-        RNAseq_filtered = pd.read_table(Check_rnaseq_filtered, sep = "\t", header = 0, lineterminator = "\n")
-        STUDY = RNAseq_filtered.study_accession.unique().to_list()
+# def aggregate_study (wildcards):
+#	Check_rnaseq_filtered = checkpoints.filter_metadata.get().output.ena_filtered
+#	RNAseq_filtered = pd.read_table(Check_rnaseq_filtered, sep = "\t", header = 0, lineterminator = "\n")
+#	STUDY = RNAseq_filtered.study_accession.unique().to_list()
+#	return expand(config["wdir"] + "/Parsed_counts/gene_expression_{study}.csv", study = STUDY)
 
 rule all:
 	input:
 		ena_out = config["wdir"] + "/ENA_out/RNAseq_raw.tsv",
 		ena_filtered = config["wdir"] + "/ENA_out/RNAseq_filtered.tsv",
-		# pmc = config["wdir"] + "/Abstracts/pmc_abstracts.txt"
-		#pubmed = config["wdir"] + "/Abstracts/pubmed_abstracts.txt",
+		pmc = config["wdir"] + "/Abstracts/pmc_abstracts.txt" if config["only_keep_pubmed"] == "TRUE" else [],
+		pubmed = config["wdir"] + "/Abstracts/pubmed_abstracts.txt" if config["only_keep_pubmed"] == "TRUE" else [],
 		done = config["wdir"] + "/Fastq_downloaded/done",
-		# fastqc = config["wdir"] + "/Fastq_qc/done",
-		#parsed_counts = config["wdir"] + "/Parsed_counts/Gene_expression.csv",
-		parsed_counts = config["wdir"] + "/Parsed_counts/Gene_expression_{study}.csv",
-		summary_phix = config["wdir"] + "/Logs_summary/summary_phix.tsv"
+		fastqc = config["wdir"] + "/Fastq_qc/done",
+		parsed_counts = config["wdir"] + "/Parsed_counts/done",
+		summary_phix = config["wdir"] + "/Logs_summary/summary_phix.tsv",
+		summary_counts = config["wdir"] + "/Logs_summary/summary_counts.csv"
 
 rule search_ena:
 	output:
@@ -187,14 +188,14 @@ rule trimming:
 		trimmed = config["wdir"] + "/Fastq_trimmed/logs/{sample}_trimmed.log"
 	shell:
 		"""
-		#set -x
-		MAXLENGTH=$(zcat {input.adapter_clipped} | head -4000 | sed -n '2~4p' | perl -nle 'print length' | sort -k1,1gr | head -1 || true)
-		ML=$(bc <<< "${{MAXLENGTH}} * 3 / 4")
+		# set -x
+		MAXLEN=$(zcat {input.adapter_clipped} | head -4000 | sed -n '2~4p' | perl -nle 'print length' | sort -k1,1gr | head -1 || true)
+		MINLEN=$(bc <<< "${{MAXLEN}} * 3 / 4")
 		if [ -f {params.indir}/{params.sample}_2.fastq.gz ]
 		then
-		  bbduk.sh in={input.adapter_clipped} in2={params.indir}/{params.sample}_2.fastq.gz out={output.trimmed} out2={params.outdir}/{params.sample}_2.fastq.gz qtrim=w,4 trimq=15 minlength=$ML trimpolyg=10 threads={threads} > {log} 2>&1
+		  bbduk.sh in={input.adapter_clipped} in2={params.indir}/{params.sample}_2.fastq.gz out={output.trimmed} out2={params.outdir}/{params.sample}_2.fastq.gz qtrim=w,4 trimq=15 minlength=$MINLEN trimpolyg=10 threads={threads} > {log} 2>&1
 		else
-		  bbduk.sh in={input.adapter_clipped} out={output.trimmed} qtrim=w,4 trimq=15 minlength=$ML trimpolyg=10 threads={threads} > {log} 2>&1
+		  bbduk.sh in={input.adapter_clipped} out={output.trimmed} qtrim=w,4 trimq=15 minlength=$MINLEN trimpolyg=10 threads={threads} > {log} 2>&1
 		fi
 		"""
 
@@ -272,7 +273,7 @@ rule mapping:
 	conda: "braker-3.0.8"
 	threads: config["parallel_threads"]
 	log:
-		config["wdir"] + "/Fastq_mapped/logs/{sample}.log"
+		config["wdir"] + "/Fastq_mapped/logs/{sample}_mapped.log"
 	shell:
 		"""
 		if [ -f {params.indir}/{params.sample}_2.fastq.gz ]
@@ -295,7 +296,7 @@ rule feature_counts:
 	conda: "subread-2.0.6"
 	threads: config["parallel_threads"] 
 	log:
-		config["wdir"] + "/Gene_expression/logs/{sample}.log"
+		config["wdir"] + "/Gene_expression/logs/{sample}_counts.log"
 	shell:
 		"""
 		if [ -f {params.trimdir}/{params.sample}_2.fastq.gz ]
@@ -311,22 +312,24 @@ def aggregate_counts (wildcards):
 	RNAseq_filtered = pd.read_table(Check_rnaseq_filtered, sep = "\t", header = 0, lineterminator = "\n") 
 	SAMPLES = RNAseq_filtered.run_accession.to_list()
 	return expand(config["wdir"] + "/Gene_expression/{sample}_counts.txt", sample = SAMPLES)
-	#To have the output file (.csv) per study accession, append the study wildcard just before .csv: also  add the aggregate function name of study (defined just before rule all:) as an input.
+
 rule parse_counts:
 	input:
 		counts = aggregate_counts,
-		study = aggregate_study
+		ena_filtered = config["wdir"] + "/ENA_out/RNAseq_filtered.tsv"
 	output:
-		parsed_counts = config["wdir"] + "/Parsed_counts/Gene_expression_{study}.csv"
+		done = config["wdir"] + "/Parsed_counts/done"
 	params:
 		indir = config["wdir"] + "/Gene_expression",
+		outdir = config["wdir"] + "/Parsed_counts",
 		script = "src/parse_feature_counts.R"
 	conda: "r-4.4.0"
 	log:
 		config["wdir"] + "/Parsed_counts/logs/parsed.log"
 	shell:
 		"""
-		{params.script} -i {params.indir} -o {output.parsed_counts} >> {log} 2>&1	
+		{params.script} -i {params.indir} -o {params.outdir} -e {input.ena_filtered} >> {log} 2>&1	
+		touch {output.done}
 		"""
 
 def aggregate_phix (wildcards):
@@ -351,19 +354,27 @@ def aggregate_mapped (wildcards):
 	Check_rnaseq_filtered = checkpoints.filter_metadata.get().output.ena_filtered
 	RNAseq_filtered = pd.read_table(Check_rnaseq_filtered, sep = "\t", header = 0, lineterminator = "\n") 
 	SAMPLES = RNAseq_filtered.run_accession.to_list()
-	return expand(config["wdir"] + "/Fastq_mapped/logs/{sample}.log", sample = SAMPLES)
+	return expand(config["wdir"] + "/Fastq_mapped/logs/{sample}_mapped.log", sample = SAMPLES)
+
+def aggregate_counts (wildcards):
+        Check_rnaseq_filtered = checkpoints.filter_metadata.get().output.ena_filtered
+        RNAseq_filtered = pd.read_table(Check_rnaseq_filtered, sep = "\t", header = 0, lineterminator = "\n")
+        SAMPLES = RNAseq_filtered.run_accession.to_list()
+        return expand(config["wdir"] + "/Gene_expression/logs/{sample}_counts.log", sample = SAMPLES)
 
 rule collect_logs:
 	input:
 		phix = aggregate_phix,
 		adapter = aggregate_adapter, 
 		trimmed = aggregate_trimmed, 
-		mapped = aggregate_mapped
+		mapped = aggregate_mapped,
+		counts = aggregate_counts
 	output:
 		summary_phix = config["wdir"] + "/Logs_summary/summary_phix.tsv",
 		summary_adapter = config["wdir"] + "/Logs_summary/summary_adapter.tsv",
 		summary_trim = config["wdir"] + "/Logs_summary/summary_trimmed.tsv",
-		summary_mapped = config["wdir"] + "/Logs_summary/summary_mapped.tsv"
+		summary_mapped = config["wdir"] + "/Logs_summary/summary_mapped.tsv",
+		summary_counts = config["wdir"] + "/Logs_summary/summary_counts.csv"
 	shell:
 		"""
 		echo -e 'run_accession\\treads\\treads_perc\\tbp\\tbp_perc' > {output.summary_phix} 
@@ -373,5 +384,8 @@ rule collect_logs:
 		echo -e 'run_accession\\treads\\treads_perc\\tbp\\tbp_perc' > {output.summary_trim}
 		grep "Result" {input.trimmed} | sed -E 's/\\s+/\\t/g' | sed -e 's/_trimmed\\.log:Result://g' -e 's/^.*\\///' | cut -f1,2,4,5,7 | sed -e 's/(//g' -e 's/%)//g' >> {output.summary_trim}
 		echo -e 'run_acession\\toverall_alignment_perc' > {output.summary_mapped}
-		grep "overall alignment rate" {input.mapped} | sed -e 's/\\.log:/ /' -e 's/%//' -e 's/^.*\\///' | sed -E 's/\\s+/\\t/g' | cut -f1,2 >> {output.summary_mapped}
+		grep "overall alignment rate" {input.mapped} | sed -e 's/_mapped\\.log:/ /' -e 's/%//' -e 's/^.*\\///' | sed -E 's/\\s+/\\t/g' | cut -f1,2 >> {output.summary_mapped}
+		
+		echo -e 'run_accession\treads\talignment_perc' > {output.summary_counts}
+		grep "Successfully assigned alignments" {input.counts} | sed -E 's/\\s+/\\t/g' | sed -e 's/_counts.log:||//' -e 's/(//g' -e 's/%)//' -e 's/^.*\\///' | cut -f1,6,7 >> {output.summary_counts}
 		"""

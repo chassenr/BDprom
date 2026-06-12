@@ -62,10 +62,17 @@ option_list <- list(
     metavar = "character"
   ),
   make_option(
-    c("-o", "--output"),
+    c("-o", "--outdir"),
     type = "character",
     default = NULL,
-    help = "The output file name of the parsed featurecounts",
+    help = "The output directory for the parsed featurecounts",
+    metavar = "character"
+  ),
+  make_option(
+    c("-e", "--ena"),
+    type = "character",
+    default = NULL,
+    help = "The filtered ENA metadata containing run and study accessions",
     metavar = "character"
   )
 )
@@ -73,9 +80,9 @@ option_list <- list(
 opt_parser <- OptionParser(option_list = option_list)
 opt <- parse_args(opt_parser)
 
-if (is.null(opt$indir) | is.null(opt$output)) {
+if (is.null(opt$indir) | is.null(opt$outdir) | is.null(opt$ena)) {
   print_help(opt_parser)
-  stop("You must provide the name of the directory containing the featurecounts as input directory and a name for the output file.\n", call. = FALSE)
+  stop("You must provide the names of the inut and output directories and the file name of the ENA metadata table.\n", call. = FALSE)
 }
 
 # Set the working directory
@@ -101,12 +108,21 @@ Gene_expression_hst2 <- lapply(
   bind_cols() |>
   rownames_to_column(var = "Ensembl_gene_id")
 
+# split table by study for individual output files
+ena_filtered <- read.table(opt$ena, comment.char = "", quote = "", h = T, sep = "\t") |>
+  select(run_accession, study_accession)
+
 # write output
-write.table(
-  Gene_expression_hst2,
-  file = opt$output,
-  quote = T,
-  sep = ",",
-  row.names = F,
-  col.names = T
+lapply(
+  unique(ena_filtered$study_accession),
+  function(x) {
+    write.table(
+      Gene_expression_hst2[, c("Ensembl_gene_id", ena_filtered$run_accession[ena_filtered$study_accession == x])],
+      file = paste0(opt$outdir, "/gene_expression_", x, ".csv"),
+      quote = T,
+      sep = ",",
+      row.names = F,
+      col.names = T
+    )
+  }
 )
