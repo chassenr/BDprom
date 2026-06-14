@@ -24,6 +24,8 @@ confirm_candidate_gene_pairs <- function(
           # input needs to include a column called Ensembl_gene_id
           # all integer columns will be assumed to contain gene expression count data
           select(Ensembl_gene_id, where(is.integer)) %>% 
+          # convert gene names to upper case (in case this was not already done before)
+          mutate(Ensembl_gene_id = toupper(Ensembl_gene_id)) %>% 
           # use rownames for the gene names instead of a separate column to ensure that the data frame contains only numric data
           column_to_rownames("Ensembl_gene_id")
         # remove genes without any expression
