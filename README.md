@@ -1,31 +1,98 @@
 # BDprom
 Identification of bidirectional promoters in eukaryotic genomes based on gene expression profiles
 
-The approach consist of 3 workflows:
+The approach consist of 3 workflows that can be run independently:
 
 1. ```reads_wf```: Identification, download and processing of transcriptomic read data to obtain gene expression profiles
-2. ```identify_wf```: Identification of candidate gene pairs likely controlled by a bidirectional promoter 
-3. ```èxtract_wf```: Extraction and alignment of promoter sequences
+2. ```identify_wf```: Identification of candidate gene pairs likely controlled by a bidirectional promoter based on co-expression patterns
+3. ```extract_wf```: Extraction, alignment, and motif identification of putative promoter sequences
 
 
-## reads_wf
+# 1. reads_wf
+
+This workflow automates the selection and processing of suitable RNA-seq data for an organism of your choosing from the Sequence Read Archive (SRA) via the ENA portal API to obtain gene expression profiles.
+
+### Overview
+
+:warning: Graphical summary of workflow WIP :warning:
+
+
+**Obtaining metadata**: Taking the ```tax_id``` from the [config file](), this step automatically searches the SRA for RNA-seq experiments using the ENA portal API and downloads their metadata. Next, RNA-seq experiments are filtered to only retain those from comparable sequencing technology, with sufficient sequencing depth, replication of experimental conditions, and (optionally) those published in a peer-reviewed scientific article. The filter settings are [user-configurable]().
+
+**Downloading fastq files**: Sequence read data is downloaded for each run from the ENA ftp site using [aria2c](). After download MD5sum are compared and the workflow will abort if the checksums don't match. In those cases, the affected files will have to be manually removed and the workflow restarted. Successful downloads will not be repeated.
+
+**Read quality control**: Sequence read data is quality cleaned by removing phiX reads, clipping sequencing adapters, and quality trimming with [BBduk](). The minimum read length for quality trimming is automatically determined based on the read length. For diagnostic purposes [FastQC]() profiles are generated for each run.
+
+**Read mapping**: The reference genome for the organism of interest is downloaded and indexed for mapping with [Hisat2]() in an exon- and splice-aware format. Sequence reads are mapped and bam files are filtered to retain only primary alignments and (in case of paired-end data) those mapping as proper pair.
+
+**Gene expression quantification**: Reads (fragments for paired-end data) mapping to features based on the gene coordinated in the GTF file are counted with [FeatureCounts]() and aggregated in comma-separated values tables per study.
+
+**Summarizing log information**: For each analysis step (phiX removal, adapter clipping, quality trimming, mapping, feature counting) the number and percentage of reads is summarized across all runs. It is highly recommended to review these tables to assess workflow performance.
+
+
+### Usage
+
+**Software installation**
+
+This workflow uses [snakemake](https://snakemake.readthedocs.io/en/stable/getting_started/installation.html). It has been developed and tested with snakemake version 8.28.0. Each rule requires a dedicated conda environment. At the moment, these conda environments are not automatically installed by snakemake, but assumed to the be available on your system. However, the yaml files for each environment can be found in the ```envs``` subdirectory of this repository. You further need ```wget```, [```dos2unix```](https://packages.debian.org/search?keywords=dos2unix) and [GNU ```parallel```](https://www.gnu.org/software/parallel/man.html) available on your system.
+
+To get started, clone this repository. It is highly recommended to work with [SSH keys for cloning](https://docs.github.com/en/authentication/connecting-to-github-with-ssh).
+
+```
+git clone git@github.com:chassenr/BDprom.git
+cd BDprom
+```
+
+**Workflow configuration**
+
+The subdirectory ```config``` contains configuration files for each of the 3 workflows within this project. For the ```reads_wf``` you need to modify [```config_reads_wf.yaml```](https://github.com/chassenr/BDprom/blob/main/config/config_reads_wf.yaml). Example configuration settings for several species are available in ```example_config```().
+
+* **```wdir```**: Path to your working directory. This is not the location of your repository clone, but the location where the output from the workflow will be written. You need at least **5 times the disk space** available than written in the log file for the ENA metadata retrieval and filtering (located at ```wdir/ENA_out/logs/filter_ena_metadata.log```)
+* **```threads```** & **```parallel_threads```**: Number of default threads (should always be 1) and number of threads for parallelized analysis steps. Keep in mind that more is not always better. Ideally, the number of threads available on your system can be divided by ```parallel_threads```, so that multiple samples can be processed in parallel, each using ```parallel_threads```. A number between 16 and 48 should perform well. 
+* **```gtf_link```**: Download link for the GTF genome annotation file. E.g. ```"http://ftp.ensemblgenomes.org/pub/protists/current/gtf/thalassiosira_pseudonana/Thalassiosira_pseudonana.ASM14940v2.62.gtf.gz"```
+* **```genome_link```**: Download link for the genome fasta file. E.g. ```"http://ftp.ensemblgenomes.org/pub/protists/current/fasta/thalassiosira_pseudonana/dna/Thalassiosira_pseudonana.ASM14940v2.dna.toplevel.fa.gz"```. When using Ensembl resources, you should use the toplevel genome file without masking.
+* **```tax_id```**: [NCBI taxon ID](https://www.ncbi.nlm.nih.gov/taxonomy) corresponding to the taxon for which the genome and gtf download links were specified. E.g. ```"35128"``` for Thalassiosira pseudonana.
+* **```min_read_counts```**: Minimum number of reads per run. Runs with fewer reads will not be used in the analysis. E.g. 5000000.
+* **```seq_technology```**: Allowed values for [sequencing platform](https://ena-docs.readthedocs.io/en/latest/submit/reads/webin-cli.html#permitted-values-for-platform) (comma-separated list, no spaces). Only sequencing platforms generating comparable data should be listed here. E.g. "ILLUMINA,BGISEQ,DNBSEQ".
+* **```min_n_runs```**: Minium number of sequencing runs per study. Studies with fewer runs after applying previous 2 filtering steps will not be used in the analysis. E.g. 5.
+* **```only_keep_pubmed```**: Logical flag specifying if only ENA studies which can be linked to a scientific article on [PubMed](https://pubmed.ncbi.nlm.nih.gov/) or [PMC](https://pmc.ncbi.nlm.nih.gov/) should be analysed. Allowed values: "FALSE" or "TRUE".
+
+
+**Workflow execution**
 
 ```
 conda activate snakemake-8.28.0
-cd /otc-genomics/IOWseq000082_BDprom/Intermediate_results/Repos/BDprom
-
-snakemake -s rules/rules_reads_wf.smk --software-deployment-method conda --cores 96
-
+snakemake -s rules/rules_reads_wf.smk --software-deployment-method conda --cores 384 -np
 ```
 
+It is highly recommended to conduct a dry-run first (```-np```). Remove those flags to start the workflow.
 
 
+### Output
+
+The main output files of this worflow are:
+
+* ```ENA_out/RNAseq_filtered.tsv```: A tab-separated values table with the metadata of the RNAseq runs, including PMC and PubMed accession number of related articles.
+* ```Parsed_counts/gene_expression_*```: Comma-separated gene expression count tables, 1 file per ENA study.
+* ```Abstracts/pmc_abstracts.txt``` & ```Abstracts/pubmed_abstracts.txt```: Titles and abstracts of the scientific articles linked to the RNAseq data in a tab-separated values table. This output is optional depending on the setting of ```only_keep_pubmed``` in the config file. 
+* ```Logs_summary/summary_*```: Diagnostic information, summarizing the number and percentage of reads retained after each analysis step.
 
 
+### Future development
 
-## Step 0: Preparations
+* add conda env installation to snakemake rules
+* add metadata filter based on abstract content
 
-**Download genome coordinates and differential gene expression data:**
+
+# 2. identify_wf
+
+This workflow uses gene coordinates and co-expression patterns to create a list of gene pairs potentially regulated by a bidirectional promoter. It further provides a visual summary of the co-expression for manual refinement of the list of candidate gene pairs.
+
+So far, the ```identify_wf``` workflow is only available as interactive R script using the commands outlined below in this README.
+
+### Preparations
+
+**Obtain genome coordinates and differential gene expression data:**
 
 Gene annotations and coordinates can be obtained from [EnsemblGenomes](https://ftp.ensemblgenomes.ebi.ac.uk/pub/protists/current/gtf/) for the organisms available on this platform. E.g. Navigate to phaeodactylum_tricornutum, download Phaeodactylum_tricornutum.ASM15095v2.62.gtf.gz (e.g. into the working directory used for running the below commands), and unzip it.
 
@@ -41,10 +108,12 @@ Each file with gene expression data must contain a column named "Ensembl_gene_id
 " PHATR3_J46547","PHATR3_J46547","  ",7734,10183,9089,54,56,64
 ```
 
+If gene expression data was obtained via the ```reads_wf``` workflow, the files ```gene_expression_*``` in the ```Parsed_counts``` output directory will be in the correct format and can be used directly. Any other source of gene expression data will also be accepted as long as file name and content meet the above criteria.
+
 
 **Prepare R working environment:**
 
-Apart from the genome coordinates and gene expression data, you will need the R functions provided in this repository. For this clone or download the repository to your local computer. The below instructions assume that the gtf file and the directory with the gene expression tables are located in the main repository directory, however, you can easily provide file paths to other locations. 
+Apart from the genome coordinates and gene expression data, you will need the R functions provided in this repository. For this, clone or download the repository to your local computer. The below instructions assume that the gtf file and the directory with the gene expression tables are located in the main repository directory, however, you can easily provide file paths to other locations. 
 
 ```
 setwd("path/to/your/working/directory")
@@ -52,7 +121,7 @@ require(tidyverse)
 require(reshape)
 ```
 
-## Step 1: Identification of candidate gene pairs based on genome organisation
+### Identification of candidate gene pairs based on genome organisation
 
 In a first step gene pairs, which may be regulated by one bidirectional promoter, are identified based on their position and orientation in the genome. In order to be selected the need to meet the following criteria:
 
@@ -92,7 +161,7 @@ PHATR3_J31409	636	28204	28839	+	28204	1	PHATR3_EG02408
 * neighbor: second gene in candidate pair
 
 
-## Step 2: Validation of co-regulation based on gene expression profiles 
+### Validation of co-regulation based on gene expression profiles 
 
 Second, gene expression profiles across multiple samples are used to confirm co-regulation of each gene pair. Ideally, data from multiple studies is used covering different experimental / environmental conditions to increase the chances of observing differential gene expression for all candidate pairs. Gene expression data can be obtained from [DiatomicBase](https://www.diatomicsbase.bio.ens.psl.eu/) as described above. By default R will look for csv files with gene expression data in a subdirectory ```ge_dir = "diatomicbase_data"``` in the current working directory. For the evaluation of co-expression patterns, TPM (transcripts per million) will then be calculated.
 
@@ -140,7 +209,7 @@ PHATR3_EG00410___PHATR3_J48873	PHATR3_EG00410	PHATR3_J48873	0.822	1.422	0.969	3.
 * study: SRA study accession for which co-expression was calculated
 
 
-## Step 3: Visualization of co-expression
+### Visualization of co-expression
 
 Additional to the summary statistics about the co-expression patterns generated in step 2, pairwise scatter plots are created for each gene pair passing the filter in step 2. For studies where the gene pair is expressed, but which did not make the thresholds in step 2, gene expression (TPM) is shown as grey dots. Otherwise points are colored by study and the correlation coefficient for the gene pair is included in the legend. Additionally, the line, slope and R2 of the linear regression using gene expression values from all studies (incl. the grey dots) and only using the values from the studies where the gene pair passed the filters are shown in grey and black, respectively.
 
@@ -154,3 +223,13 @@ visualize_candidate_gene_pairs(
   out_file = "bdprom_plot_pairs.pdf"
 )
 ```
+
+
+### Future development
+
+* There will be an automated version of the ```identify_wf``` workflow available soon, implemented in snakemake.
+
+
+# 3. extract_wf
+
+:warning: WIP :warning:
