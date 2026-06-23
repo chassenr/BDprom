@@ -14,18 +14,17 @@ This workflow automates the selection and processing of suitable RNA-seq data fo
 
 ### Overview
 
-:warning: Graphical summary of workflow WIP :warning:
+<img src="https://github.com/chassenr/BDprom/blob/main/images/schematic_reads_wf.png" width="80%" height="80%">
 
+**Obtaining metadata**: Taking the ```tax_id``` from the config file(see [usage](https://github.com/chassenr/BDprom/tree/main#usage)), this step automatically searches the SRA for RNA-seq experiments using the ENA portal API and downloads their metadata. Next, RNA-seq experiments are filtered to only retain those from comparable sequencing technology, with sufficient sequencing depth, replication of experimental conditions, and (optionally) those published in a peer-reviewed scientific article. The filter settings are user-configurable.
 
-**Obtaining metadata**: Taking the ```tax_id``` from the [config file](), this step automatically searches the SRA for RNA-seq experiments using the ENA portal API and downloads their metadata. Next, RNA-seq experiments are filtered to only retain those from comparable sequencing technology, with sufficient sequencing depth, replication of experimental conditions, and (optionally) those published in a peer-reviewed scientific article. The filter settings are [user-configurable]().
+**Downloading fastq files**: Sequence read data is downloaded for each run from the ENA ftp site using [aria2c](https://aria2.github.io/manual/en/html/aria2c.html). After download MD5sum are compared and the workflow will abort if the checksums don't match. In those cases, the affected files will have to be manually removed and the workflow restarted. Successful downloads will not be repeated.
 
-**Downloading fastq files**: Sequence read data is downloaded for each run from the ENA ftp site using [aria2c](). After download MD5sum are compared and the workflow will abort if the checksums don't match. In those cases, the affected files will have to be manually removed and the workflow restarted. Successful downloads will not be repeated.
+**Read quality control**: Sequence read data is quality cleaned by removing phiX reads, clipping sequencing adapters, and quality trimming with [BBduk](https://archive.jgi.doe.gov/data-and-tools/software-tools/bbtools/bb-tools-user-guide/bbduk-guide/). The minimum read length for quality trimming is automatically determined based on the read length. For diagnostic purposes [FastQC](https://www.bioinformatics.babraham.ac.uk/projects/fastqc/) profiles are generated for each run.
 
-**Read quality control**: Sequence read data is quality cleaned by removing phiX reads, clipping sequencing adapters, and quality trimming with [BBduk](). The minimum read length for quality trimming is automatically determined based on the read length. For diagnostic purposes [FastQC]() profiles are generated for each run.
+**Read mapping**: The reference genome for the organism of interest is downloaded and indexed for mapping with [Hisat2](https://daehwankimlab.github.io/hisat2/) in an exon- and splice-aware format. Sequence reads are mapped and bam files are filtered to retain only primary alignments and (in case of paired-end data) those mapping as proper pair.
 
-**Read mapping**: The reference genome for the organism of interest is downloaded and indexed for mapping with [Hisat2]() in an exon- and splice-aware format. Sequence reads are mapped and bam files are filtered to retain only primary alignments and (in case of paired-end data) those mapping as proper pair.
-
-**Gene expression quantification**: Reads (fragments for paired-end data) mapping to features based on the gene coordinated in the GTF file are counted with [FeatureCounts]() and aggregated in comma-separated values tables per study.
+**Gene expression quantification**: Reads (fragments for paired-end data) mapping to features based on the gene coordinated in the GTF file are counted with [FeatureCounts](https://subread.sourceforge.net/featureCounts.html) and aggregated in comma-separated values tables per study.
 
 **Summarizing log information**: For each analysis step (phiX removal, adapter clipping, quality trimming, mapping, feature counting) the number and percentage of reads is summarized across all runs. It is highly recommended to review these tables to assess workflow performance.
 
@@ -73,7 +72,7 @@ It is highly recommended to conduct a dry-run first (```-np```). Remove those fl
 The main output files of this worflow are:
 
 * ```ENA_out/RNAseq_filtered.tsv```: A tab-separated values table with the metadata of the RNAseq runs, including PMC and PubMed accession number of related articles.
-* ```Parsed_counts/gene_expression_*```: Comma-separated gene expression count tables, 1 file per ENA study.
+* ```Parsed_counts/gene_expression_*```: Comma-separated gene expression count tables, 1 file per ENA study. The first column contains the ```Ensembl_gene_id```, all subsequent collumns the read counts per feature and run.
 * ```Abstracts/pmc_abstracts.txt``` & ```Abstracts/pubmed_abstracts.txt```: Titles and abstracts of the scientific articles linked to the RNAseq data in a tab-separated values table. This output is optional depending on the setting of ```only_keep_pubmed``` in the config file. 
 * ```Logs_summary/summary_*```: Diagnostic information, summarizing the number and percentage of reads retained after each analysis step.
 
