@@ -1,5 +1,5 @@
 # BDprom
-Identification of bidirectional promoters in eukaryotic genomes based on gene expression profiles
+Identification of bidirectional promoters in eukaryotic genomes based on gene expression profiles.
 
 The approach consist of 3 workflows that can be run independently:
 
@@ -232,3 +232,23 @@ visualize_candidate_gene_pairs(
 # 3. extract_wf
 
 :warning: WIP :warning:
+
+
+# Citation
+
+* WIP
+
+Please also cite the dependencies:
+
+* ENA portal API
+* R Core Team (2024) R: A Language and Environment for Statistical Computing. R Foundation for Statistical Computing, Vienna, Austria. https://www.R-project.org/.
+* Davis T (2024) optparse: Command Line Option Parser. R package version 1.7.5. https://CRAN.R-project.org/package=optparse.
+* Allaire J (2023) config: Manage Environment Specific Configuration Values. R package version 0.3.2. https://CRAN.R-project.org/package=config.
+* Wickham H, Averick M, Bryan J, Chang W, McGowan LD, François R, Grolemund G, Hayes A, Henry L, Hester J, Kuhn M, Pedersen TL, Miller E, Bache SM, Müller K, Ooms J, Robinson D, Seidel DP, Spinu V, Takahashi K, Vaughan D, Wilke C, Woo K, Yutani H (2019) Welcome to the tidyverse. Journal of Open Source Software 4(43):1686. https://doi.org/10.21105/joss.01686.
+* Bengtsson H (2023) R.utils: Various Programming Utilities. R package version 2.12.3. https://CRAN.R-project.org/package=R.utils.
+* NCBI edirect
+* aria2
+* Bushnell B (2014) BBMap. Available online at https://sourceforge.net/projects/bbmap/.
+* Andrews S, Krueger F, Segonds-Pichon A, Biggins L, Krueger C, Wingett S (2010) FastQC: a quality control tool for high throughput sequence data. Available online at https://www.bioinformatics.babraham.ac.uk/projects/fastqc/.
+* Kim D, Paggi JM, Park C, Bennett C, Salzberg SL (2019) Graph-based genome alignment and genotyping with HISAT2 and HISAT-genotype. Nat Biotechnol. 37(8):907-915. https://www.nature.com/articles/s41587-019-0201-4.
+* Liao Y, Smyth GK, Shi W (2014) featureCounts: an efficient general purpose program for assigning sequence reads to genomic features. Bioinformatics 30(7):923-30. https://doi.org/10.1093/bioinformatics/btt656.
