@@ -1,0 +1,43 @@
+name: braker-3.0.8
+channels:
+  - conda-forge
+  - anaconda
+  - bioconda
+  - eumetsat
+dependencies:
+  - python=3.9
+  - perl
+  - biopython
+  - perl-app-cpanminus
+  - perl-file-spec
+  - perl-hash-merge
+  - perl-list-util
+  - perl-module-load-conditional
+  - perl-posix
+  - perl-file-homedir
+  - perl-parallel-forkmanager
+  - perl-scalar-util-numeric
+  - perl-yaml
+  - perl-class-data-inheritable
+  - perl-exception-class
+  - perl-test-pod
+  - perl-file-which
+  - perl-mce
+  - perl-threaded
+  - perl-list-util
+  - perl-math-utils
+  - perl-data-dumper
+  - perl-yaml-xs
+  - augustus
+  - bamtools
+  - samtools
+  - spaln
+  - diamond
+  - blast
+  - cdbtools
+  - sra-tools
+  - hisat2
+  - bedtools
+  - stringtie
+  - gffread
+  - compleasm

@@ -4,8 +4,8 @@ import pandas as pd
 
 # specify config file
 # change this path to the location of the config file with your project specific settings
-configfile: "/otc-genomics/IOWseq000082_BDprom/Intermediate_results/Repos/tmp/BDprom/config/config_reads_wf.yaml"
-
+configfile: "/otc-genomics/IOWseq000082_BDprom/Intermediate_results/Repos/BDprom/config/example_config/config_reads_wf_Arabidopsis_thaliana.yaml"
+#configfile: "/otc-genomics/IOWseq000082_BDprom/Intermediate_results/Repos/BDprom/config/example_config/config_reads_wf_Phaeodactylum_tricornutum.yaml" 
 # def aggregate_study (wildcards):
 #	Check_rnaseq_filtered = checkpoints.filter_metadata.get().output.ena_filtered
 #	RNAseq_filtered = pd.read_table(Check_rnaseq_filtered, sep = "\t", header = 0, lineterminator = "\n")
@@ -17,12 +17,12 @@ rule all:
 		ena_out = config["wdir"] + "/ENA_out/RNAseq_raw.tsv",
 		ena_filtered = config["wdir"] + "/ENA_out/RNAseq_filtered.tsv",
 		pmc = config["wdir"] + "/Abstracts/pmc_abstracts.txt" if config["only_keep_pubmed"] == "TRUE" else [],
-		pubmed = config["wdir"] + "/Abstracts/pubmed_abstracts.txt" if config["only_keep_pubmed"] == "TRUE" else [],
-		done = config["wdir"] + "/Fastq_downloaded/done",
-		fastqc = config["wdir"] + "/Fastq_qc/done",
-		parsed_counts = config["wdir"] + "/Parsed_counts/done",
-		summary_phix = config["wdir"] + "/Logs_summary/summary_phix.tsv",
-		summary_counts = config["wdir"] + "/Logs_summary/summary_counts.csv"
+		pubmed = config["wdir"] + "/Abstracts/pubmed_abstracts.txt" if config["only_keep_pubmed"] == "TRUE" else []
+		#done = config["wdir"] + "/Fastq_downloaded/done",
+		#fastqc = config["wdir"] + "/Fastq_qc/done",
+		#parsed_counts = config["wdir"] + "/Parsed_counts/done",
+		#summary_phix = config["wdir"] + "/Logs_summary/summary_phix.tsv",
+		#summary_counts = config["wdir"] + "/Logs_summary/summary_counts.csv"
 
 rule search_ena:
 	output:
@@ -66,11 +66,13 @@ if config["only_keep_pubmed"] == "TRUE":
 		shell:
 			"""
 			mkdir -p {params.outdir}
+			mkdir -p {params.outdir}/logs
 			echo -E "pmc_id\ttitle\tabstract" > {output.pmc}
 			CN=$(head -1 {input.ena_filtered} | tr '\\t' '\\n' | grep -i -w -n "EuropePMC" | cut -d':' -f1)
 			cut -f$CN {input.ena_filtered} | sed '1d' | tr ';' '\n' | sort -u | sed '/^NA$/d' | while read line
 			do
-		  	  efetch -db pmc -format medline -mode text -id $line > {params.outdir}/$line.efetch
+		  	  efetch -db pmc -format medline -mode text -id $line > {params.outdir}/$line.efetch 2> {params.outdir}/logs/$line.log
+			  dos2unix {params.outdir}/$line.efetch
 			  {params.script} {params.outdir}/$line.efetch >> {output.pmc}
 			done
 			"""
@@ -88,11 +90,13 @@ if config["only_keep_pubmed"] == "TRUE":
 		shell:
 			"""
 			mkdir -p {params.outdir}
+			mkdir -p {params.outdir}/logs
 			echo -E "pubmed_id\ttitle\tabstract" > {output.pubmed}
 			CN=$(head -1 {input.ena_filtered} | tr '\\t' '\\n' | grep -i -w -n "PubMed" | cut -d':' -f1)
 			cut -f$CN {input.ena_filtered} | sed '1d' | tr ';' '\n' | sort -u | sed '/^NA$/d' | while read line
 			do
-		  	  efetch -db pubmed -format medline -mode text -id $line > {params.outdir}/$line.efetch
+		  	  efetch -db pubmed -format medline -mode text -id $line > {params.outdir}/$line.efetch 2> {params.outdir}/logs/$line.log
+			  dos2unix {params.outdir}/$line.efetch
 		  	  {params.script} {params.outdir}/$line.efetch >> {output.pubmed}
 			done
 			"""

@@ -1,0 +1,24 @@
+##manual search: type curl -d paste the url link -o write the output directory
+
+# specify file path to analysis directory
+wdir: "/otc-genomics/IOWseq000082_BDprom/Intermediate_results/Arabidopsis_thaliana"
+
+# configure threads for parallelization
+threads: 1 # default if threads are not specified in the rule
+parallel_threads: 16
+
+
+#specify the organism from which to download the .gtf.gz and .fasta files
+gtf_link: "https://ftp.ensemblgenomes.ebi.ac.uk/pub/plants/current/gtf/arabidopsis_thaliana/Arabidopsis_thaliana.TAIR10.63.gtf.gz"
+genome_link: "https://ftp.ensemblgenomes.ebi.ac.uk/pub/plants/current/fasta/arabidopsis_thaliana/dna/Arabidopsis_thaliana.TAIR10.dna.toplevel.fa.gz"
+
+# Specify the taxon for which to retrieve RNA-seq experiments
+tax_id: "3702"
+
+# sepcify thresholds for filtering metadata
+min_read_counts: 5000000
+min_n_runs: 5
+seq_technology: "ILLUMINA,BGISEQ,DNBSEQ"
+only_keep_pubmed: "TRUE"
+
+

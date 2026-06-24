@@ -1,0 +1,6 @@
+name: qc-env
+channels:
+  - bioconda
+dependencies:
+  - fastqc
+  - multiqc

@@ -1,0 +1,6 @@
+name: foldseek-10.941cd33 
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - foldseek
