@@ -15,9 +15,9 @@ configfile: "/otc-genomics/IOWseq000082_BDprom/Intermediate_results/Repos/BDprom
 rule all:
 	input:
 		ena_out = config["wdir"] + "/ENA_out/RNAseq_raw.tsv",
-		ena_filtered = config["wdir"] + "/ENA_out/RNAseq_filtered.tsv",
-		pmc = config["wdir"] + "/Abstracts/pmc_abstracts.txt" if config["only_keep_pubmed"] == "TRUE" else [],
-		pubmed = config["wdir"] + "/Abstracts/pubmed_abstracts.txt" if config["only_keep_pubmed"] == "TRUE" else []
+		ena_filtered = config["wdir"] + "/ENA_out/RNAseq_filtered.tsv"
+		#pmc = config["wdir"] + "/Abstracts/pmc_abstracts.txt" if config["only_keep_pubmed"] == "TRUE" else [],
+		#pubmed = config["wdir"] + "/Abstracts/pubmed_abstracts.txt" if config["only_keep_pubmed"] == "TRUE" else [],
 		#done = config["wdir"] + "/Fastq_downloaded/done",
 		#fastqc = config["wdir"] + "/Fastq_qc/done",
 		#parsed_counts = config["wdir"] + "/Parsed_counts/done",
@@ -34,11 +34,11 @@ rule search_ena:
 		curl -X POST -H "Content-Type: application/x-www-form-urlencoded" -d 'result=read_run&query=tax_tree({params.tax_id})%20AND%20library_source%3D%22transcriptomic%22%20AND%20library_strategy%3D%22rna-seq%22&fields=run_accession%2Cexperiment_title%2Ctax_id%2Clibrary_source%2Cbase_count%2Cbio_material%2Cbroad_scale_environmental_context%2Cbroker_name%2Ccenter_name%2Cchecklist%2Ccollected_by%2Ccollection_date%2Ccollection_date_end%2Ccollection_date_start%2Ccountry%2Cdescription%2Cenvironmental_medium%2Cexperiment_accession%2Cexperiment_alias%2Cfastq_bytes%2Cfastq_ftp%2Cfastq_md5%2Cfirst_created%2Cfirst_public%2Cidentified_by%2Cinstrument_model%2Cinstrument_platform%2Cinvestigation_type%2Cisolate%2Cisolation_source%2Clast_updated%2Clat%2Clibrary_construction_protocol%2Clibrary_gen_protocol%2Clibrary_layout%2Clibrary_max_fragment_size%2Clibrary_min_fragment_size%2Clibrary_name%2Clibrary_selection%2Clibrary_strategy%2Clocal_environmental_context%2Clocation%2Clocation_end%2Clocation_start%2Clon%2Cmarine_region%2Cncbi_reporting_standard%2Cnominal_length%2Cnominal_sdev%2Cproject_name%2Cread_count%2Cread_strand%2Crna_integrity_num%2Crna_purity_230_ratio%2Crna_purity_280_ratio%2Crun_alias%2Csample_accession%2Csample_alias%2Csample_collection%2Csample_description%2Csample_material%2Csample_storage%2Csample_storage_processing%2Csample_title%2Csampling_campaign%2Csampling_platform%2Csampling_site%2Cscientific_name%2Csecondary_project%2Csecondary_sample_accession%2Csecondary_study_accession%2Csequencing_method%2Cstudy_accession%2Cstudy_alias%2Cstudy_title%2Csub_species%2Csub_strain%2Csubmission_accession%2Csubmission_tool%2Ctag%2Ctarget_gene%2Ctax_lineage%2Ctaxonomic_classification&format=tsv' "https://www.ebi.ac.uk/ena/portal/api/search" > {output.ena_out}
 		"""
 
-checkpoint filter_metadata:
+rule screen_metadata:
 	input:
 		ena_out = config["wdir"] + "/ENA_out/RNAseq_raw.tsv"
 	output:
-		ena_filtered = config["wdir"] + "/ENA_out/RNAseq_filtered.tsv"
+		ena_screened = config["wdir"] + "/ENA_out/RNAseq_screened.tsv"
 	params:
 		min_read_counts = config["min_read_counts"],
 		min_n_runs = config["min_n_runs"],
@@ -50,13 +50,13 @@ checkpoint filter_metadata:
 		config["wdir"] + "/ENA_out/logs/filter_ena_metadata.log"
 	shell:
 		"""
-		{params.script} -e {input.ena_out} -c {params.min_read_counts} -r {params.min_n_runs} -s {params.seq_technology} -p {params.only_keep_pubmed} -o {output.ena_filtered} >> {log} 2>&1
+		{params.script} -e {input.ena_out} -c {params.min_read_counts} -r {params.min_n_runs} -s {params.seq_technology} -p {params.only_keep_pubmed} -o {output.ena_screened} >> {log} 2>&1
 		"""
 
 if config["only_keep_pubmed"] == "TRUE":
 	rule get_abstract_pmc:
 		input: 
-			ena_filtered = config["wdir"] + "/ENA_out/RNAseq_filtered.tsv"
+			ena_screened = config["wdir"] + "/ENA_out/RNAseq_screened.tsv"
 		output:
 			pmc = config["wdir"] + "/Abstracts/pmc_abstracts.txt"
 		params:
@@ -68,19 +68,18 @@ if config["only_keep_pubmed"] == "TRUE":
 			mkdir -p {params.outdir}
 			mkdir -p {params.outdir}/logs
 			echo -E "pmc_id\ttitle\tabstract" > {output.pmc}
-			CN=$(head -1 {input.ena_filtered} | tr '\\t' '\\n' | grep -i -w -n "EuropePMC" | cut -d':' -f1)
-			cut -f$CN {input.ena_filtered} | sed '1d' | tr ';' '\n' | sort -u | sed '/^NA$/d' | while read line
+			CN=$(head -1 {input.ena_screened} | tr '\\t' '\\n' | grep -i -w -n "EuropePMC" | cut -d':' -f1)
+			cut -f$CN {input.ena_screened} | sed '1d' | tr ';' '\n' | sort -u | sed '/^NA$/d' | while read line
 			do
 		  	  efetch -db pmc -format medline -mode text -id $line > {params.outdir}/$line.efetch 2> {params.outdir}/logs/$line.log
 			  dos2unix {params.outdir}/$line.efetch
-			  {params.script} {params.outdir}/$line.efetch >> {output.pmc}
+			  {params.script} {params.outdir}/$line.efetch | sed 's/^/pmc_/' >> {output.pmc}
 			done
 			"""
 
-if config["only_keep_pubmed"] == "TRUE":
 	rule get_abstract_pubmed:
 		input: 
-			ena_filtered = config["wdir"] + "/ENA_out/RNAseq_filtered.tsv"
+			ena_screened = config["wdir"] + "/ENA_out/RNAseq_screened.tsv"
 		output:
 			pubmed = config["wdir"] + "/Abstracts/pubmed_abstracts.txt"
 		params:
@@ -92,14 +91,56 @@ if config["only_keep_pubmed"] == "TRUE":
 			mkdir -p {params.outdir}
 			mkdir -p {params.outdir}/logs
 			echo -E "pubmed_id\ttitle\tabstract" > {output.pubmed}
-			CN=$(head -1 {input.ena_filtered} | tr '\\t' '\\n' | grep -i -w -n "PubMed" | cut -d':' -f1)
-			cut -f$CN {input.ena_filtered} | sed '1d' | tr ';' '\n' | sort -u | sed '/^NA$/d' | while read line
+			CN=$(head -1 {input.ena_screened} | tr '\\t' '\\n' | grep -i -w -n "PubMed" | cut -d':' -f1)
+			cut -f$CN {input.ena_screened} | sed '1d' | tr ';' '\n' | sort -u | sed '/^NA$/d' | while read line
 			do
 		  	  efetch -db pubmed -format medline -mode text -id $line > {params.outdir}/$line.efetch 2> {params.outdir}/logs/$line.log
 			  dos2unix {params.outdir}/$line.efetch
-		  	  {params.script} {params.outdir}/$line.efetch >> {output.pubmed}
+		  	  {params.script} {params.outdir}/$line.efetch | sed 's/^/pubmed_/' >> {output.pubmed}
 			done
 			"""
+
+	rule cluster_abstracts:
+		input:
+			pmc = config["wdir"] + "/Abstracts/pmc_abstracts.txt",
+			pubmed = config["wdir"] + "/Abstracts/pubmed_abstracts.txt"
+		output:
+			clustered = config["wdir"] + "/Abstracts/abstracts_clustered.txt"
+			selected = config["wdir"] + "/Abstracts/abstracts_selected.txt"
+		params:
+			tmpdir = config["wdir"] + "/Abstracts"
+		conda: "nlp-dev"
+		log:
+			cluster_log = config["wdir"] + "/Abstracts/logs/cluster_abstracts.log"
+		shell:
+			"""
+			sed '1d' {input.pmc} > {params.tmpdir}/tmp_cat_abstracts.txt
+			sed '1d' {input.pubmed} >> {params.tmpdir}/tmp_cat_abstracts.txt
+			cluster_abstracts.py --input {params.tmpdir}/tmp_cat_abstracts.txt --output {output.clustered} --threshold 0.5 --model all-MiniLM-L6-v2 >> {log.cluster_log} 2>&1
+			awk -v FS="\\t" -v OFS="\\t" '$5 == "True"' {output.clustered} | cut -f1 > {output.selected}
+			"""
+
+checkpoint filter_metadata:
+	input:
+		ena_screened = config["wdir"] + "/ENA_out/RNAseq_screened.tsv"
+		selected = config["wdir"] + "/Abstracts/abstracts_selected.txt" if config["only_keep_pubmed"] == "TRUE" else []
+	output:
+		ena_filtered = config["wdir"] + "/ENA_out/RNAseq_filtered.tsv"
+	params:
+		only_keep_pubmed = config["only_keep_pubmed"]
+	shell:
+		"""
+		if [[ "params.only_keep_pubmed" == "TRUE" ]]
+		then
+		  CN_PMC=$(head -1 {input.ena_screened} | tr '\\t' '\\n' | grep -i -w -n "EuropePMC" | cut -d':' -f1)
+		  CN_PUBMED=$(head -1 {input.ena_screened} | tr '\\t' '\\n' | grep -i -w -n "PubMed" | cut -d':' -f1)
+		  head -1 {input.ena_screened} > {output.ena_filtered}
+		  cut -f1,$CN_PMC {input.ena_screened} | grep -w -F -f <(grep "pmc_" {input.selected} | cut -d'_' -f2) | cut -f1 | grep -w -F -f - {input.ena_screened} >> {output.ena_filtered}
+		  cut -f1,$CN_PUBMED {input.ena_screened} | grep -w -F -f <(grep "pubmed_" {input.selected} | cut -d'_' -f2) | cut -f1 | grep -w -F -f - {input.ena_screened} >> {output.ena_filtered}
+		else
+		  cp {input.ena_screened} {output.ena_filtered}
+		fi
+		"""
 
 rule download_files:
 	input:
