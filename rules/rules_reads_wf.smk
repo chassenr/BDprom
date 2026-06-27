@@ -4,8 +4,9 @@ import pandas as pd
 
 # specify config file
 # change this path to the location of the config file with your project specific settings
-configfile: "/otc-genomics/IOWseq000082_BDprom/Intermediate_results/Repos/BDprom/config/example_config/config_reads_wf_Arabidopsis_thaliana.yaml"
-#configfile: "/otc-genomics/IOWseq000082_BDprom/Intermediate_results/Repos/BDprom/config/example_config/config_reads_wf_Phaeodactylum_tricornutum.yaml" 
+# configfile: "/otc-genomics/IOWseq000082_BDprom/Intermediate_results/Repos/BDprom/config/example_config/config_reads_wf_Arabidopsis_thaliana.yaml"
+configfile: "~/BDprom/config/config_reads_wf.yaml"
+
 # def aggregate_study (wildcards):
 #	Check_rnaseq_filtered = checkpoints.filter_metadata.get().output.ena_filtered
 #	RNAseq_filtered = pd.read_table(Check_rnaseq_filtered, sep = "\t", header = 0, lineterminator = "\n")
@@ -16,13 +17,11 @@ rule all:
 	input:
 		ena_out = config["wdir"] + "/ENA_out/RNAseq_raw.tsv",
 		ena_filtered = config["wdir"] + "/ENA_out/RNAseq_filtered.tsv"
-		#pmc = config["wdir"] + "/Abstracts/pmc_abstracts.txt" if config["only_keep_pubmed"] == "TRUE" else [],
-		#pubmed = config["wdir"] + "/Abstracts/pubmed_abstracts.txt" if config["only_keep_pubmed"] == "TRUE" else [],
 		#done = config["wdir"] + "/Fastq_downloaded/done",
-		#fastqc = config["wdir"] + "/Fastq_qc/done",
-		#parsed_counts = config["wdir"] + "/Parsed_counts/done",
+		fastqc = config["wdir"] + "/Fastq_qc/done",
+		parsed_counts = config["wdir"] + "/Parsed_counts/done",
 		#summary_phix = config["wdir"] + "/Logs_summary/summary_phix.tsv",
-		#summary_counts = config["wdir"] + "/Logs_summary/summary_counts.csv"
+		summary_counts = config["wdir"] + "/Logs_summary/summary_counts.csv"
 
 rule search_ena:
 	output:
@@ -73,7 +72,7 @@ if config["only_keep_pubmed"] == "TRUE":
 			do
 		  	  efetch -db pmc -format medline -mode text -id $line > {params.outdir}/$line.efetch 2> {params.outdir}/logs/$line.log
 			  dos2unix {params.outdir}/$line.efetch
-			  {params.script} {params.outdir}/$line.efetch | sed 's/^/pmc_/' >> {output.pmc}
+			  {params.script} {params.outdir}/$line.efetch | sed "s/^/pmc_${{line}}\\t/" >> {output.pmc}
 			done
 			"""
 
@@ -96,7 +95,7 @@ if config["only_keep_pubmed"] == "TRUE":
 			do
 		  	  efetch -db pubmed -format medline -mode text -id $line > {params.outdir}/$line.efetch 2> {params.outdir}/logs/$line.log
 			  dos2unix {params.outdir}/$line.efetch
-		  	  {params.script} {params.outdir}/$line.efetch | sed 's/^/pubmed_/' >> {output.pubmed}
+		  	  {params.script} {params.outdir}/$line.efetch | sed "s/^/pubmed_${{line}}\\t/" >> {output.pubmed}
 			done
 			"""
 
@@ -105,10 +104,11 @@ if config["only_keep_pubmed"] == "TRUE":
 			pmc = config["wdir"] + "/Abstracts/pmc_abstracts.txt",
 			pubmed = config["wdir"] + "/Abstracts/pubmed_abstracts.txt"
 		output:
-			clustered = config["wdir"] + "/Abstracts/abstracts_clustered.txt"
+			clustered = config["wdir"] + "/Abstracts/abstracts_clustered.txt",
 			selected = config["wdir"] + "/Abstracts/abstracts_selected.txt"
 		params:
-			tmpdir = config["wdir"] + "/Abstracts"
+			tmpdir = config["wdir"] + "/Abstracts",
+			script = "src/cluster_abstracts.py"
 		conda: "nlp-dev"
 		log:
 			cluster_log = config["wdir"] + "/Abstracts/logs/cluster_abstracts.log"
@@ -116,13 +116,13 @@ if config["only_keep_pubmed"] == "TRUE":
 			"""
 			sed '1d' {input.pmc} > {params.tmpdir}/tmp_cat_abstracts.txt
 			sed '1d' {input.pubmed} >> {params.tmpdir}/tmp_cat_abstracts.txt
-			cluster_abstracts.py --input {params.tmpdir}/tmp_cat_abstracts.txt --output {output.clustered} --threshold 0.5 --model all-MiniLM-L6-v2 >> {log.cluster_log} 2>&1
+			{params.script} --input {params.tmpdir}/tmp_cat_abstracts.txt --output {output.clustered} --threshold 0.5 --model all-MiniLM-L6-v2 >> {log.cluster_log} 2>&1
 			awk -v FS="\\t" -v OFS="\\t" '$5 == "True"' {output.clustered} | cut -f1 > {output.selected}
 			"""
 
 checkpoint filter_metadata:
 	input:
-		ena_screened = config["wdir"] + "/ENA_out/RNAseq_screened.tsv"
+		ena_screened = config["wdir"] + "/ENA_out/RNAseq_screened.tsv",
 		selected = config["wdir"] + "/Abstracts/abstracts_selected.txt" if config["only_keep_pubmed"] == "TRUE" else []
 	output:
 		ena_filtered = config["wdir"] + "/ENA_out/RNAseq_filtered.tsv"
@@ -130,7 +130,7 @@ checkpoint filter_metadata:
 		only_keep_pubmed = config["only_keep_pubmed"]
 	shell:
 		"""
-		if [[ "params.only_keep_pubmed" == "TRUE" ]]
+		if [[ "{params.only_keep_pubmed}" == "TRUE" ]]
 		then
 		  CN_PMC=$(head -1 {input.ena_screened} | tr '\\t' '\\n' | grep -i -w -n "EuropePMC" | cut -d':' -f1)
 		  CN_PUBMED=$(head -1 {input.ena_screened} | tr '\\t' '\\n' | grep -i -w -n "PubMed" | cut -d':' -f1)

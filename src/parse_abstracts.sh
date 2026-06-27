@@ -17,15 +17,7 @@ awk '
 		}
 	}
 	
-	#PMID
-	/^PMID- /{
-		# Remove the "PMID- " prefix and print the first line
-		sub(/^PMID- /, "")
-		PMID = $0
-	}
-	# PMID is a single line so no need for while function
-                            
-	#ABSTRACT 
+	# ABSTRACT 
 	/^AB  - /{
 		# Remove the "AB  - " prefix and print the first line
 		sub(/^AB  - /, "")
@@ -42,7 +34,7 @@ awk '
 			}
 		}
 	}
-	END {  #indicating the end of reiterations 
-		print PMID "\t" title "\t" abstract     # awk recognizes \t as "\t" 
+	END {  # indicating the end of reiterations 
+		print title "\t" abstract 
 	}
 ' $1

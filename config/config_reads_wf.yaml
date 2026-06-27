@@ -14,13 +14,10 @@ genome_link: "https://ftp.ensemblgenomes.ebi.ac.uk/pub/plants/current/fasta/arab
 
 # Specify the taxon for which to retrieve RNA-seq experiments
 tax_id: "3702"
-#tax_id: "2850"(phaeodactylum_tricornutum)
-#tax_id: "3702"(Arabidopsis thalania)
 
 # sepcify thresholds for filtering metadata
-min_read_counts: 5000000
-min_n_runs: 5
+min_read_counts: 20000000
+min_n_runs: 10
 seq_technology: "ILLUMINA,BGISEQ,DNBSEQ"
 only_keep_pubmed: "TRUE"
-#only_keep_pubmed: "FALSE"
 
