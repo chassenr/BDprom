@@ -1,8 +1,8 @@
 ##manual search: type curl -d paste the url link -o write the output directory
 
 # specify file path to analysis directory
-wdir: "/otc-genomics/IOWseq000082_BDprom/Intermediate_results/Thalassiosira_pseudonana"
-
+#wdir: "/otc-genomics/IOWseq000082_BDprom/Intermediate_results/Thalassiosira_pseudonana"
+wdir: "/otc-genomics/IOWseq000082_BDprom/Intermediate_results"
 # configure threads for parallelization
 threads: 1 # default if threads are not specified in the rule
 parallel_threads: 48
