@@ -5,7 +5,7 @@ import pandas as pd
 # specify config file
 # change this path to the location of the config file with your project specific settings
 # configfile: "/otc-genomics/IOWseq000082_BDprom/Intermediate_results/Repos/BDprom/config/example_config/config_reads_wf_Arabidopsis_thaliana.yaml"
-configfile: "~/BDprom/config/config_reads_wf.yaml"
+configfile: "config/config_reads_wf.yaml"
 
 # def aggregate_study (wildcards):
 #	Check_rnaseq_filtered = checkpoints.filter_metadata.get().output.ena_filtered
@@ -16,7 +16,7 @@ configfile: "~/BDprom/config/config_reads_wf.yaml"
 rule all:
 	input:
 		ena_out = config["wdir"] + "/ENA_out/RNAseq_raw.tsv",
-		ena_filtered = config["wdir"] + "/ENA_out/RNAseq_filtered.tsv"
+		ena_filtered = config["wdir"] + "/ENA_out/RNAseq_filtered.tsv",
 		#done = config["wdir"] + "/Fastq_downloaded/done",
 		fastqc = config["wdir"] + "/Fastq_qc/done",
 		parsed_counts = config["wdir"] + "/Parsed_counts/done",
@@ -108,6 +108,8 @@ if config["only_keep_pubmed"] == "TRUE":
 			selected = config["wdir"] + "/Abstracts/abstracts_selected.txt"
 		params:
 			tmpdir = config["wdir"] + "/Abstracts",
+			sim_cut = config["similarity_threshold"],
+			model = config["nlp_model"],
 			script = "src/cluster_abstracts.py"
 		conda: "nlp-dev"
 		log:
@@ -116,7 +118,7 @@ if config["only_keep_pubmed"] == "TRUE":
 			"""
 			sed '1d' {input.pmc} > {params.tmpdir}/tmp_cat_abstracts.txt
 			sed '1d' {input.pubmed} >> {params.tmpdir}/tmp_cat_abstracts.txt
-			{params.script} --input {params.tmpdir}/tmp_cat_abstracts.txt --output {output.clustered} --threshold 0.5 --model all-MiniLM-L6-v2 >> {log.cluster_log} 2>&1
+			{params.script} --input {params.tmpdir}/tmp_cat_abstracts.txt --output {output.clustered} --threshold {params.sim_cut} --model {params.model} >> {log.cluster_log} 2>&1
 			awk -v FS="\\t" -v OFS="\\t" '$5 == "True"' {output.clustered} | cut -f1 > {output.selected}
 			"""
 
@@ -150,26 +152,30 @@ rule download_files:
 	params:
 		outdir = config["wdir"] + "/Fastq_downloaded"
 	conda: "foldseek-10.941cd33"
+	threads: 16
 	log:
 		aria2 =config["wdir"] + "/Fastq_downloaded/logs/aria2c.log",
 		stdout = config["wdir"] + "/Fastq_downloaded/logs/md5_out.log",
 		stderr = config["wdir"] + "/Fastq_downloaded/logs/md5_err.log"
 	shell:
 		"""
-		set -x
+		# set -x
 		CN=$(head -1 {input.ena_filtered} | tr '\\t' '\\n' | grep -w -n "fastq_ftp" | cut -d':' -f1)
 		cut -f$CN {input.ena_filtered} | sed '1d' | tr ';' '\\n' | sed 's/^/http:\\/\\//' > {params.outdir}/download_links.txt
-		(aria2c -i {params.outdir}/download_links.txt -c --dir {params.outdir} --max-tries=20 --retry-wait=5 --max-connection-per-server=1 --max-concurrent-downloads=16 -V >> {log.aria2} 2>&1) || true
+		(aria2c -i {params.outdir}/download_links.txt -c --dir {params.outdir} --max-tries=20 --retry-wait=5 --max-connection-per-server=1 --max-concurrent-downloads={threads} -V >> {log.aria2} 2>&1) || true
 		MD5=$(head -1 {input.ena_filtered} | tr '\\t' '\\n' | grep -w -n "fastq_md5" | cut -d':' -f1)
 		paste <(cut -f$MD5 {input.ena_filtered} | sed '1d' | tr ';' '\\n') <(cut -f$CN {input.ena_filtered} | sed '1d' | tr ';' '\\n' | xargs -n1 basename | sed "s|^|{params.outdir}/|") > {params.outdir}/md5_checksums.txt
-		(md5sum -c {params.outdir}/md5_checksums.txt > {log.stdout} 2> {log.stderr}) || true
+		# (md5sum -c {params.outdir}/md5_checksums.txt > {log.stdout} 2> {log.stderr}) || true
+		cat /dev/null > {log.stdout}
+		cat /dev/null > {log.stderr}
+		cat {params.outdir}/md5_checksums.txt | parallel --round-robin --pipe -j{threads} -N100 md5sum -c >> {log.stdout} 2>> {log.stderr} || true
 		if [ $(wc -l < {params.outdir}/md5_checksums.txt) == $(grep -c "OK" {log.stdout}) ]
 		then
 		  echo "All downloaded files passed checksums."
 		  touch {output.done}
 		else
-		  echo "Not all files were downloaded correctly. Please remove them and repeat the download.\n"
-		  grep "FAILED" {log.stdout}
+		  echo "Not all files were downloaded correctly. Corrupted files are listed in {params.outdir}/logs/remove_corrupted_download.txt. Please remove them and repeat the download by restarting the workflow.\\n"
+		  grep "FAILED" {log.stdout} | cut -d':' -f1 > {params.outdir}/logs/remove_corrupted_download.txt
 		fi
 		"""
 

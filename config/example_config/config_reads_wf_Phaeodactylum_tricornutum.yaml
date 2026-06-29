@@ -23,4 +23,7 @@ seq_technology: "ILLUMINA,BGISEQ,DNBSEQ"
 #only_keep_pubmed: "FALSE"
 only_keep_pubmed: "TRUE"
 
+# configure abstract clustering
+similarity_threshold: 0.5 # ranges between 0 and 1, lower values will return mode studies
+nlp_model: "all-MiniLM-L6-v2" # specify huggingface transformer model, alternatively use e.g.: "pritlab/sci-bert-nli"
 

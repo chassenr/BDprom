@@ -16,9 +16,12 @@ genome_link: "https://ftp.ensemblgenomes.ebi.ac.uk/pub/plants/current/fasta/arab
 tax_id: "3702"
 
 # sepcify thresholds for filtering metadata
-min_read_counts: 5000000
-min_n_runs: 5
+min_read_counts: 20000000
+min_n_runs: 10
 seq_technology: "ILLUMINA,BGISEQ,DNBSEQ"
 only_keep_pubmed: "TRUE"
 
+# configure abstract clustering
+similarity_threshold: 0.5 # ranges between 0 and 1, lower values will return mode studies
+nlp_model: "all-MiniLM-L6-v2" # specify huggingface transformer model, alternatively use e.g.: "pritlab/sci-bert-nli"
 
