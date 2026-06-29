@@ -224,6 +224,7 @@ rule adapter_clipping:
 		  bbduk.sh in={input.phix_clipped} out={output.adapter_clipped} ref=adapters k=23 mink=11 ktrim=r hdist=1 threads={threads} > {log} 2>&1  
 		fi
 		"""
+
 rule trimming:
 	input:
 		adapter_clipped = config["wdir"] + "/Fastq_adapter_clipped/{sample}_1.fastq.gz"
@@ -425,10 +426,10 @@ rule collect_logs:
 		summary_adapter = config["wdir"] + "/Logs_summary/summary_adapter.tsv",
 		summary_trim = config["wdir"] + "/Logs_summary/summary_trimmed.tsv",
 		summary_mapped = config["wdir"] + "/Logs_summary/summary_mapped.tsv",
-		summary_counts = config["wdir"] + "/Logs_summary/summary_counts.csv"
+		summary_counts = config["wdir"] + "/Logs_summary/summary_counts.tsv"
 	shell:
 		"""
-		echo -e 'run_accession\\treads\\treads_perc\\tbp\\tbp_perc' > {output.summary_phix} 
+		echo -e 'run_accession\\treads\\treads_perc\\tbp\\tbp_perc' > {output.summary_phix}
 		grep "Result" {input.phix} | sed -E 's/\\s+/\\t/g' | sed -e 's/_phix\\.log:Result://' -e 's/^.*\\///' | cut -f1,2,4,5,7 | sed -e 's/(//g' -e 's/%)//g' >> {output.summary_phix}
 		echo -e 'run_accession\\treads\\treads_perc\\tbp\\tbp_perc' > {output.summary_adapter}
 		grep "Result" {input.adapter} | sed -E 's/\\s+/\\t/g' | sed -e 's/_adapter\\.log:Result://g' -e 's/^.*\\///' | cut -f1,2,4,5,7 | sed -e 's/(//g' -e 's/%)//g' >> {output.summary_adapter}
@@ -436,7 +437,6 @@ rule collect_logs:
 		grep "Result" {input.trimmed} | sed -E 's/\\s+/\\t/g' | sed -e 's/_trimmed\\.log:Result://g' -e 's/^.*\\///' | cut -f1,2,4,5,7 | sed -e 's/(//g' -e 's/%)//g' >> {output.summary_trim}
 		echo -e 'run_acession\\toverall_alignment_perc' > {output.summary_mapped}
 		grep "overall alignment rate" {input.mapped} | sed -e 's/_mapped\\.log:/ /' -e 's/%//' -e 's/^.*\\///' | sed -E 's/\\s+/\\t/g' | cut -f1,2 >> {output.summary_mapped}
-		
 		echo -e 'run_accession\treads\talignment_perc' > {output.summary_counts}
 		grep "Successfully assigned alignments" {input.counts} | sed -E 's/\\s+/\\t/g' | sed -e 's/_counts.log:||//' -e 's/(//g' -e 's/%)//' -e 's/^.*\\///' | cut -f1,6,7 >> {output.summary_counts}
 		"""
