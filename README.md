@@ -16,7 +16,7 @@ This workflow automates the selection and processing of suitable RNA-seq data fo
 
 <img src="https://github.com/chassenr/BDprom/blob/main/images/schematic_reads_wf.png" width="80%" height="80%">
 
-**Obtaining metadata**: Taking the ```tax_id``` from the config file(see [usage](https://github.com/chassenr/BDprom/tree/main#usage)), this step automatically searches the SRA for RNA-seq experiments using the ENA portal API and downloads their metadata. Next, RNA-seq experiments are filtered to only retain those from comparable sequencing technology, with sufficient sequencing depth, replication of experimental conditions, and (optionally) those published in a peer-reviewed scientific article. The filter settings are user-configurable.
+**Obtaining metadata**: Taking the ```tax_id``` from the config file(see [usage](https://github.com/chassenr/BDprom/tree/main#usage)), this step automatically searches the SRA for RNA-seq experiments using the ENA portal API and downloads their metadata. Next, RNA-seq experiments are filtered to only retain those from comparable sequencing technology, with sufficient sequencing depth, replication of experimental conditions, and (optionally) those published in a peer-reviewed scientific article. For the latter approach, there is also the possibility to select only a subset of studies that best capture a broad range of experimental conditions. This is achieved by clustering the abstracts of the associated scientific articles based on a similar context using a language model and selecting only 1 representative study per cluster. The sensitivity of this clustering approach can be adjusted to tune the number of studies that are returned. 
 
 **Downloading fastq files**: Sequence read data is downloaded for each run from the ENA ftp site using [aria2c](https://aria2.github.io/manual/en/html/aria2c.html). After download MD5sum are compared and the workflow will abort if the checksums don't match. In those cases, the affected files will have to be manually removed and the workflow restarted. Successful downloads will not be repeated.
 
@@ -55,6 +55,8 @@ The subdirectory ```config``` contains configuration files for each of the 3 wor
 * **```seq_technology```**: Allowed values for [sequencing platform](https://ena-docs.readthedocs.io/en/latest/submit/reads/webin-cli.html#permitted-values-for-platform) (comma-separated list, no spaces). Only sequencing platforms generating comparable data should be listed here. E.g. "ILLUMINA,BGISEQ,DNBSEQ".
 * **```min_n_runs```**: Minium number of sequencing runs per study. Studies with fewer runs after applying previous 2 filtering steps will not be used in the analysis. E.g. 5.
 * **```only_keep_pubmed```**: Logical flag specifying if only ENA studies which can be linked to a scientific article on [PubMed](https://pubmed.ncbi.nlm.nih.gov/) or [PMC](https://pmc.ncbi.nlm.nih.gov/) should be analysed. Allowed values: "FALSE" or "TRUE".
+* **```similarity_threshold```**: Similarity threshold to cluster abstracts based on their context. Ranges between 0 and 1, lower values will return mode studies.
+* **```nlp_model```**: The transformer model to be used to generate embeddings for the abstracts. Currently only registration free models from [huggingface](https://huggingface.co/) are supported. E.g. "all-MiniLM-L6-v2", "pritlab/sci-bert-nli".
 
 
 **Workflow execution**
@@ -74,13 +76,13 @@ The main output files of this worflow are:
 * ```ENA_out/RNAseq_filtered.tsv```: A tab-separated values table with the metadata of the RNAseq runs, including PMC and PubMed accession number of related articles.
 * ```Parsed_counts/gene_expression_*```: Comma-separated gene expression count tables, 1 file per ENA study. The first column contains the ```Ensembl_gene_id```, all subsequent collumns the read counts per feature and run.
 * ```Abstracts/pmc_abstracts.txt``` & ```Abstracts/pubmed_abstracts.txt```: Titles and abstracts of the scientific articles linked to the RNAseq data in a tab-separated values table. This output is optional depending on the setting of ```only_keep_pubmed``` in the config file. 
+* ```abstracts_clustered.txt```: Abstract clustering information, including clustering assignment (cluster_id), status (is_representative), and distance to the medoid of the cluster (distance_to_center). This output is optional depending on the setting of ```only_keep_pubmed``` in the config file. 
 * ```Logs_summary/summary_*```: Diagnostic information, summarizing the number and percentage of reads retained after each analysis step.
 
 
 ### Future development
 
 * add conda env installation to snakemake rules
-* add metadata filter based on abstract content
 
 
 # 2. identify_wf
