@@ -23,7 +23,7 @@ visualize_candidate_gene_pairs <- function(
   )
   
   # then generate figures
-  pdf(out_file, height = 6, width = 7, onefile = T)
+  pdf(out_file, height = 6, width = 8, onefile = T)
   for(i in names(ge_r2)[order(ge_r2, decreasing = T)]) {
     
     g1 <- gsub("___.*$", "", i)
@@ -33,7 +33,8 @@ visualize_candidate_gene_pairs <- function(
       max(unlist(sapply(ge$tpm, function(x) if(sum(c(g1, g2) %in% colnames(x)) == 2) max(x[, c(g1, g2)]))))
     )
     
-    par(mar = c(3, 3, 3, 8), xpd = F)
+    layout(mat = matrix(c(1, 1, 1, 2, 3, 4), nrow = 3, ncol = 2, byrow = F), widths = c(1.5, 1))
+    par(mar = c(3, 3, 3, 1), yaxs = "r", xpd = F, lwd = 0.1)
     plot(
       0,
       0,
@@ -55,7 +56,7 @@ visualize_candidate_gene_pairs <- function(
           ge$tpm[[j]][, g1],
           ge$tpm[[j]][, g2],
           pch = 16,
-          col = "grey",
+          col = "grey80",
           cex = 0.5
         )
       }
@@ -74,15 +75,15 @@ visualize_candidate_gene_pairs <- function(
     ge1_pass <- unlist(sapply(ge$tpm[ge$bdp$study[ge$bdp$gene_pair == i]], function(x) x[, g1]))
     ge2_pass <- unlist(sapply(ge$tpm[ge$bdp$study[ge$bdp$gene_pair == i]], function(x) x[, g2]))
     fit_pass <- lm(I(ge2_pass) ~ 0 + ge1_pass)
-    abline(fit_all, col = "grey", lwd = 2, lty = 2)
-    abline(fit_pass, col = "black", lwd = 2, lty = 1)
+    abline(fit_all, col = "grey80", lwd = 2, lty = 2)
+    abline(fit_pass, col = "grey20", lwd = 2, lty = 1)
     box("plot", lwd = 0.5)
     text(
       par("usr")[1],
       par("usr")[4] - (par("usr")[4] - par("usr")[3]) * 0.03,
       labels = paste0("slope = ", round(fit_pass$coefficients, 2), "; R2 = ", round(summary(fit_pass)$r.squared, 2)),
       pos = 4,
-      col = "black",
+      col = "grey20",
       cex = 0.7
     )
     text(
@@ -90,19 +91,73 @@ visualize_candidate_gene_pairs <- function(
       par("usr")[4] - (par("usr")[4] - par("usr")[3]) * 0.06,
       labels = paste0("slope = ", round(fit_all$coefficients, 2), "; R2 = ", round(summary(fit_all)$r.squared, 2)),
       pos = 4,
-      col = "grey",
+      col = "grey80",
       cex = 0.7
     )
-    par(xpd = NA)
-    legend(
-      x = par("usr")[2],
-      y = par("usr")[4],
-      legend = paste0(ge$bdp$study[ge$bdp$gene_pair == i], ": ", round(ge$bdp$cor[ge$bdp$gene_pair == i], 2)),
-      col = study.col[ge$bdp$study[ge$bdp$gene_pair == i]],
-      cex = 0.7,
-      pt.cex = 1,
-      pch = 16,
-      bty = "n"
+    
+    par(mar = c(3, 2, 3, 1), yaxs = "i", xpd = NA)
+    # correlation per study
+    hist(
+      ge$ge$cor[ge$ge$gene_pair == i],
+      breaks = seq(-1, 1, 0.1),
+      col = "grey80",
+      axes = F,
+      main = "Correlation coefficient",
+      ylab = "", 
+      xlab = ""
+    )
+    axis(1, lwd = 0.1, cex.axis = 0.7, mgp = c(1.5, 0.5, 0))
+    axis(2, lwd = 0.1, cex.axis = 0.7, mgp = c(1.5, 0.5, 0))
+    hist(
+      ge$bdp$cor[ge$bdp$gene_pair == i],
+      breaks = seq(-1, 1, 0.1),
+      col = "grey20",
+      add = T
+    )
+    text(
+      par("usr")[1],
+      par("usr")[4] * 1.05,
+      labels = paste0(sum(ge$bdp$gene_pair == i), " out of ", sum(ge$ge$gene_pair == i), " studies passing thresholds."),
+      pos = 4,
+      col = "grey20",
+      cex = 0.7
+    )
+    # R2 per study
+    hist(
+      ge$ge$r2[ge$ge$gene_pair == i],
+      breaks = seq(0, 1, 0.05),
+      col = "grey80",
+      axes = F,
+      main = "R squared",
+      ylab = "", 
+      xlab = ""
+    )
+    axis(1, lwd = 0.1, cex.axis = 0.7, mgp = c(1.5, 0.5, 0))
+    axis(2, lwd = 0.1, cex.axis = 0.7, mgp = c(1.5, 0.5, 0))
+    hist(
+      ge$bdp$r2[ge$bdp$gene_pair == i],
+      breaks = seq(0, 1, 0.05),
+      col = "grey20",
+      add = T,
+      lwd = 0.1
+    )
+    # slope per study
+    hist(
+      ge$ge$slope[ge$ge$gene_pair == i],
+      breaks = seq(min(ge$ge$slope[ge$ge$gene_pair == i]), max(ge$ge$slope[ge$ge$gene_pair == i]), length.out = 20),
+      col = "grey80",
+      axes = F,
+      main = "Slope",
+      ylab = "", 
+      xlab = ""
+    )
+    axis(1, lwd = 0.1, cex.axis = 0.7, mgp = c(1.5, 0.5, 0))
+    axis(2, lwd = 0.1, cex.axis = 0.7, mgp = c(1.5, 0.5, 0))
+    hist(
+      ge$bdp$slope[ge$bdp$gene_pair == i],
+      breaks = seq(min(ge$ge$slope[ge$ge$gene_pair == i]), max(ge$ge$slope[ge$ge$gene_pair == i]), length.out = 20),
+      col = "grey20",
+      add = T
     )
   }
   dev.off()
