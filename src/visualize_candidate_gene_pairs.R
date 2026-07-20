@@ -22,9 +22,15 @@ visualize_candidate_gene_pairs <- function(
     }
   )
   
+  # alternatively, sort be number of studies passing thresholds
+  ge_pass <- sapply(unique(ge$bdp$gene_pair), function(i) sum(ge$bdp$gene_pair == i))
+  # or: relative to total number of studies where gene was expressed
+  ge_frac <- sapply(unique(ge$bdp$gene_pair), function(i) sum(ge$bdp$gene_pair == i) / sum(ge$ge$gene_pair == i))
+  
   # then generate figures
   pdf(out_file, height = 6, width = 8, onefile = T)
-  for(i in names(ge_r2)[order(ge_r2, decreasing = T)]) {
+  # pick one out of: ge_r2, ge_pass, ge_frac
+  for(i in names(ge_frac)[order(ge_frac, decreasing = T)]) {
     
     g1 <- gsub("___.*$", "", i)
     g2 <- gsub("^.*___", "", i)
