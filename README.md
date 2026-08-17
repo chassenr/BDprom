@@ -147,17 +147,17 @@ list_candidate_pairs <- identify_candidate_gene_pairs(
 This command writes the coordinates of the candidate gene pairs to file (```out_file```) and creates a list in your workspace that contains both the full table of genes coordinates for the organism as well as a subset thereof for the candidate gene pairs.
 
 ```
-(rowname)	length	min	max	orientation	start	chromosome	neighbor
-PHATR3_J42424	1656	18350	20109	-	20109	1	PHATR3_J7430
-PHATR3_J7430	1764	20334	22097	+	20334	1	PHATR3_J42424
-PHATR3_EG02408	2700	24703	27789	-	27789	1	PHATR3_J31409
-PHATR3_J31409	636	28204	28839	+	28204	1	PHATR3_EG02408
+(rowname)	length	min	max	orientation	start	end	chromosome	neighbor
+PHATR3_J42424	1656	18350	20109	-	20109	18350	1	PHATR3_J7430
+PHATR3_J7430	1764	20334	22097	+	20334	22097	1	PHATR3_J42424
+PHATR3_EG02408	2700	24703	27789	-	27789	24703	1	PHATR3_J31409
+PHATR3_J31409	636	28204	28839	+	28204	28839	1	PHATR3_EG02408
 ```
 
 * length: length of the gene (cumulative exon length)
 * min / max: first and last coordinates of gene (across all exons) in chromosome reading direction
 * orientation: gene orientation relative to chromosome reading direction
-* start: start position of first exon in gene in gene reading direction (i.e. start position of minus oriented genes will be higher than end position)
+* start/end: start/end positions in gene reading direction (i.e. start position of minus oriented genes will be higher than end position)
 * chromosome: chromosome ID on which gene is located
 * neighbor: second gene in candidate pair
 

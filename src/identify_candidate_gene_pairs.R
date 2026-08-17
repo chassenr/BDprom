@@ -25,6 +25,8 @@ identify_candidate_gene_pairs <- function(
       orientation = paste0(unique(V7), collapse = ";"),
       # get start position depending on orientation
       start = ifelse(orientation == "-", max, min),
+      # get end position depending on orientation
+      end = ifelse(orientation == "-", min, max),
       # get chromosome name to make sure that pairs aren't selected across multiple chromosomes
       chromosome = unique(V1)
     ) %>% 
@@ -37,25 +39,28 @@ identify_candidate_gene_pairs <- function(
     # convert to data frame
     as.data.frame()
   
-  # identify neighboring gene (the one upstream of the start position in reading direction)
+  # identify neighboring genes (the one upstream of the start position in reading direction)
+  # already filter to pairs with opposite orientation
   gene_coord$neighbor <- sapply(
     # for each gene name, i.e. each row in the data frame
     1:nrow(gene_coord), 
     function(x) {
-      ifelse(
-        # if gene at position x is in reverse orientation and gene at position x + 1 located on the same chromosome
-        gene_coord$orientation[x] == "-" & gene_coord$chromosome[x + 1] == gene_coord$chromosome[x], 
-        # the neighbor of gene x is gene x + 1
-        rownames(gene_coord)[x + 1],
-        ifelse(
-          # if gene at position x is in forward orientation and gene at position x - 1 located on the same chromosome
-          gene_coord$orientation[x] == "+" & gene_coord$chromosome[x - 1] == gene_coord$chromosome[x], 
-          # the neighbor of gene x is gene x - 1
-          rownames(gene_coord)[x - 1],
-          # otherwise, there is no neighbor (start and end of chromosomes)
-          NA
-        )
-      )
+      # if gene at position x is in reverse orientation
+      if(gene_coord$orientation[x] == "-") {
+        # only consider genes on the same chromosome wich are located downstream (based on order in GTF)
+        tmp <- gene_coord[(x + 1):nrow(gene_coord), ] %>% 
+          filter(chromosome == gene_coord$chromosome[x])
+        # select the first gene that has a start position higher than x and is in forward orientation
+        suppressWarnings(return(rownames(tmp)[min(which(tmp$start > gene_coord$start[x] & tmp$orientation == "+"))]))
+      }
+      # if gene at position x is in forward orientation
+      if(gene_coord$orientation[x] == "+") {
+        # only consider genes on the same chromosome wich are located upstream (based on order in GTF)
+        tmp <- gene_coord[1:(x - 1), ] %>% 
+          filter(chromosome == gene_coord$chromosome[x])
+        # select the last gene that has a start position lower than x and is in reverse orientation
+        suppressWarnings(return(rownames(tmp)[max(which(tmp$start < gene_coord$start[x] & tmp$orientation == "-"))]))
+      }
     }
   )
   
@@ -67,8 +72,8 @@ identify_candidate_gene_pairs <- function(
       if(
         # there is a neighbor for gene x
         !is.na(gene_coord$neighbor[x]) &
-        # if gene x and its neighbor are in opposite orientation
-        gene_coord$orientation[x] != gene_coord[gene_coord$neighbor[x], "orientation"] & 
+        # gene pairs are bidirectional (no need to check if neighbor of neighbor is NA - that cannot happen)
+        gene_coord[gene_coord$neighbor[x], "neighbor"] == rownames(gene_coord)[x] &
         # if the distance between the neighbors is without the limits defined earlier
         abs(gene_coord$start[x] - gene_coord[gene_coord$neighbor[x], "start"]) <= dist_max
       ) {
