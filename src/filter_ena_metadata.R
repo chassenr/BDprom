@@ -1,6 +1,5 @@
 #!/usr/bin/env Rscript
 
-# parse assembly metadata for NCBI genomes
 
 ### setting up environment ####
 
@@ -45,9 +44,7 @@ if (any(!is.installed(package.list))) {
 
 # Load packages
 cat("Loading libraries...")
-silent <- suppressMessages(lapply(package.list, function(X) {
-  require(X, character.only = TRUE)
-}))
+silent <- suppressMessages(lapply(package.list, function(X) { require(X, character.only = TRUE) }))
 rm(silent)
 cat(" done\n")
 
@@ -57,7 +54,6 @@ msg <- function(X) {
 }
 
 
-#####################################################################
 ### Reading command line options ####
 
 # define command line options
@@ -116,11 +112,9 @@ if (is.null(opt$ena_search_out) | is.null(opt$output)) {
 }
 
 
-# Set the working directory
-# this will be taken out once script is made executable
-# setwd("P:/CQ_Beratug_Bildung_GmbH/Internship_2026/IOW_2026/BDP_IOW/data")
+### Process metadata downloaded from ENA ####
 
-#  parse vector of sequencing platform names from opt
+# parse vector of sequencing platform names from opt
 seq_tech <- strsplit(opt$seq_tech, ",")[[1]]
 
 # reading data
@@ -131,11 +125,8 @@ ENA_curl <- read.table(file = opt$ena_search_out, comment.char = "", quote = "",
     sample_accession != "",
     study_accession != ""
   )
-# head(ENA_curl)
-# colnames(ENA_curl)
 
-# Getting Xrefs for the study accessions
-# Any unique study accessions?
+# retrieving associated scientific article for each ENA study (if any)
 
 msg(
   paste0(
@@ -150,8 +141,7 @@ msg(
 )
 
 
-# Xref links retrieval
-# test <- read.table("https://www.ebi.ac.uk/ena/xref/rest/tsv/search?accession=PRJEB11970", header =TRUE, sep = "\t")
+# XREF links retrieval
 
 combined_xrefs <- lapply(
   unique(ENA_curl$study_accession),
@@ -182,7 +172,7 @@ combined_xrefs <- lapply(
 msg(paste0(nrow(combined_xrefs), " of those ENA studies have associated scientific articles.\n"))
 
 
-# Now, combine the combined_xref_PubMed table to the very original ENA_curl table that we had obtained from the ENA database. #left_join()
+# combine the xref table with the metadata table that we had obtained from the ENA database
 
 ENA_xrefs <- left_join(
   ENA_curl,
@@ -190,10 +180,8 @@ ENA_xrefs <- left_join(
   by = c("study_accession" = "study_primary")
 )
 
-# colnames(ENA_xrefs_filtered)
-# nrow(ENA_xrefs)
+# filter metadata
 
-#### filter metadata
 ENA_xrefs_filtered <- ENA_xrefs |>
   # remove runs without correct data i.e. filter out entries that lack downloadable .fastq files
   filter(
@@ -201,22 +189,17 @@ ENA_xrefs_filtered <- ENA_xrefs |>
     # remove shallowly sequenced runs
     read_count >= opt$min_readcounts
   ) |>
-  # remove fewer than 5 replicates/runs i.e. >= 5, first group by study accession (by rows), then filter and count the runs that meet the specified threshold.
-
   # by the type of the instrument platform
   # since the allowed platforms are listed in a vector, use %in% to go inside the vector
-
   filter(instrument_platform %in% seq_tech) |>
-  # for the PE reads, it can happen that the entries just indicates PE (due to poor documentation and reportin.     #For this, we need to split the fastq_ftp files that have entries separated by semicolon (the are the 2 files of the PAIRED ENDS).
-  # create a new column to save these the counts (from the function length) of the splitted .fastq files.
+  # count number of read files per run (values other than 2 indicate errors in files for PE data)
   mutate(n_files = sapply(strsplit(fastq_ftp, ";"), length)) |>
-  # filter only those that are recorded as paired and have 2 .fast files from the spli, AND those recorded as SINGLE and have 1 .fastq file files
+  # filter to only those that are recorded as paired and have 2 fastq files, AND those recorded as SINGLE and have 1 .fastq file files
   filter((library_layout == "PAIRED" & n_files == 2) | (library_layout == "SINGLE" & n_files == 1)) |>
   # count number of runs per study and filter by minimum number of runs
   group_by(study_accession) |>
   filter(n() >= opt$min_runs) |>
   ungroup()
-
 
 msg(
   paste0(
@@ -234,6 +217,7 @@ msg(
 )
 
 # Retain only entries whose Pumbmed articles are available
+
 if (opt$pubmed) {
   ENA_xrefs_filtered <- ENA_xrefs_filtered |> filter(!is.na(PubMed) | !is.na(EuropePMC))
 
@@ -253,19 +237,6 @@ if (opt$pubmed) {
   )
 }
 
-
-## format download links
-
-#ENA_xrefs_downloadlinks <- ENA_xrefs_filtered |>
-#  separate(
-#    col = fastq_ftp,
-#    into = c("r1_download", "r2_download"),
-#    sep = ";",
-#    remove = F,
-#    convert = F,
-#    fill = "right"
-#  )
-
 # write output
 write.table(
   ENA_xrefs_filtered,
@@ -274,3 +245,5 @@ write.table(
   sep = "\t",
   row.names = F
 )
+
+

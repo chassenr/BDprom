@@ -1,28 +1,35 @@
 # specify config file
 # change this path to the location of the config file with your project specific settings
-configfile: "/otc-genomics/IOWseq000082_BDprom/Intermediate_results/Repos/BDprom/config/config_identify_wf.yaml"
+configfile: "/srv/bio/Analysis_data/IOWseq000082_BDprom/Intermediate_results/Repos/BDprom/config/config_identify_wf.yaml"
 
 rule all:
 	input:
-		ge_pairs = config["wdir"] + "/Bdprom_pairs/bdprom_candidate_pairs.txt"
+		ge_candidate = config["wdir"] + "/Pairs_out/bdprom_candidate_pairs.txt",
+		ge_confirmed = config["wdir"] + "/Pairs_out/bdprom_ge_pairs.txt",
+		ge_vis = config["wdir"] + "/Pairs_out/bdprom_plot_pairs.pdf"
 	
-rule identifygenepairs:
+rule identify_pairs:
 	input:
-		gtf = config["wdir"] + "/Phaeodactylum_tricornutum/Genome/genome.gtf"
+		gtf = config["wdir"] + "/Genome/genome.gtf"
 	output:
-		ge_pairs = config["wdir"] + "/Bdprom_pairs/bdprom_candidate_pairs.txt"
+		ge_candidate = config["wdir"] + "/Pairs_out/bdprom_candidate_pairs.txt",
+		ge_confirmed = config["wdir"] + "/Pairs_out/bdprom_ge_pairs.txt",
+		ge_vis = config["wdir"] + "/Pairs_out/bdprom_plot_pairs.pdf"
 	params:
-		indir =  config["wdir"] + "/Phaeodactylum_tricornutum/Parsed_counts",
+		wdir = config["wdir"],
+		dist_max = config["dist_max"],
 		cor_min =  config["cor_min"],
-		ge_dir = config["ge_dir"],
 		slope_diff = config["slope_diff"],
 		median_diff = config["median_diff"],
 		detect_f = config["detect_f"],
-		script = "Intermediate_results/identify_confirm_bdgenepairs.R"
+		sdir = config["sdir"]
 	conda: "r-4.4.0"	
 	log:
 		config["wdir"] + "/Bdprom_pairs/logs/pairs.log"
 	shell:
 		"""
-		-s {params.script} -i {params.indir} -c {params.indir} -g {params.ge_dir} -l {params.slope_diff} -m  {params.median_diff} -t {params.detect_f}  {input.gtf} -o {output.ge_pairs} > {log} 2>&1	
+		mkdir -p {params.wdir}/Bdprom_pairs
+		mkdir -p {params.wdir}/Bdprom_pairs/logs
+
+		{params.sdir}/wrapper_identify_wf.R -s {params.sdir} -w {params.wdir} -d {params.dist_max} -c {params.cor_min} -l {params.slope_diff} -m {params.median_diff} -f {params.detect_f} -o {params.wdir}/Bdprom_pairs > {log} 2>&1
 		"""

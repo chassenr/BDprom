@@ -1,6 +1,5 @@
 #!/usr/bin/env Rscript
 
-# parse assembly metadata for NCBI genomes
 
 ### setting up environment ####
 
@@ -43,13 +42,11 @@ if (any(!is.installed(package.list))) {
 
 # Load packages
 cat("Loading libraries...")
-silent <- suppressMessages(lapply(package.list, function(X) {
-  require(X, character.only = TRUE)
-}))
+silent <- suppressMessages(lapply(package.list, function(X) { require(X, character.only = TRUE) }))
 rm(silent)
 cat(" done\n")
 
-#####################################################################
+
 ### Reading command line options ####
 
 # define command line options
@@ -85,9 +82,8 @@ if (is.null(opt$indir) | is.null(opt$outdir) | is.null(opt$ena)) {
   stop("You must provide the names of the inut and output directories and the file name of the ENA metadata table.\n", call. = FALSE)
 }
 
-# Set the working directory
-# this will be taken out once script is made executable
-# setwd("P:/CQ_Beratug_Bildung_GmbH/Internship_2026/IOW_2026/BDP_IOW/data")
+
+### parse gene expression counts per study ####
 
 # check the input files containing files with the pattern "_counts.txt$"  and converts them into a vector
 
@@ -97,7 +93,7 @@ file_list_hst2 <- list.files(opt$indir, pattern = "_counts.txt$")
 names(file_list_hst2) <- gsub(pattern = "_counts.txt$", "", file_list_hst2)
 
 # remove the comments rows (#) and join each row (gene name) to the 7th column (counts)
-Gene_expression_hst2 <- lapply(
+gene_expression_hst2 <- lapply(
   names(file_list_hst2),
   function(x) {
     tmp <- read.table(paste0(opt$indir, "/", file_list_hst2[x]), h = T, sep = "\t", row.names = 1)[, 6, drop = F]
@@ -117,7 +113,7 @@ lapply(
   unique(ena_filtered$study_accession),
   function(x) {
     write.table(
-      Gene_expression_hst2[, c("Ensembl_gene_id", ena_filtered$run_accession[ena_filtered$study_accession == x])],
+      gene_expression_hst2[, c("Ensembl_gene_id", ena_filtered$run_accession[ena_filtered$study_accession == x])],
       file = paste0(opt$outdir, "/gene_expression_", x, ".csv"),
       quote = T,
       sep = ",",

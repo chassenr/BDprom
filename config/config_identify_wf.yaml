@@ -1,21 +1,17 @@
-##manual search: type curl -d paste the url link -o write the output directory
+# path to directory with R scripts
+sdir: "/srv/bio/Analysis_data/IOWseq000082_BDprom/Intermediate_results/Repos/BDprom/src"
 
-# specify file path to analysis directory
-#wdir: "/otc-genomics/IOWseq000082_BDprom/Intermediate_results/Thalassiosira_pseudonana"
-wdir: "/otc-genomics/IOWseq000082_BDprom/Intermediate_results"
+# specify file path to base directory of the reads_wf output
+wdir: "/srv/bio/Analysis_data/IOWseq000082_BDprom/Intermediate_results/Thalassiosira_pseudonana"
+
 # configure threads for parallelization
 threads: 1 # default if threads are not specified in the rule
 parallel_threads: 48
 
-# specify thresholds for identification of ge candidates
-gtf: "Phaeodactylum_tricornutum.ASM15095v2.62.gtf"
+# specify parameters for identification of ge candidates
 dist_max: 600
-
-# specify thresholds for confirmation of ge candidates
 cor_min: 0.5
-ge_dir: "Parsed_counts"
 slope_diff: 2
 median_diff: 1.5
 detect_f: 0.5
-
 
