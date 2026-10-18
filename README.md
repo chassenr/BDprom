@@ -260,18 +260,17 @@ It is highly recommended to conduct a dry-run first (```-np```). Remove those fl
 
 # Citation
 
-* WIP
+Ruciaka, P. K., & Hassenrueck, C. Automated workflow to identify and reprocess eukaryotic transcriptomic sequencing data from the Sequence Read Archive (SRA) [Computer software]. 
 
 Please also cite the dependencies:
 
-* ENA portal API
 * R Core Team (2024) R: A Language and Environment for Statistical Computing. R Foundation for Statistical Computing, Vienna, Austria. https://www.R-project.org/.
 * Davis T (2024) optparse: Command Line Option Parser. R package version 1.7.5. https://CRAN.R-project.org/package=optparse.
 * Allaire J (2023) config: Manage Environment Specific Configuration Values. R package version 0.3.2. https://CRAN.R-project.org/package=config.
 * Wickham H, Averick M, Bryan J, Chang W, McGowan LD, François R, Grolemund G, Hayes A, Henry L, Hester J, Kuhn M, Pedersen TL, Miller E, Bache SM, Müller K, Ooms J, Robinson D, Seidel DP, Spinu V, Takahashi K, Vaughan D, Wilke C, Woo K, Yutani H (2019) Welcome to the tidyverse. Journal of Open Source Software 4(43):1686. https://doi.org/10.21105/joss.01686.
 * Bengtsson H (2023) R.utils: Various Programming Utilities. R package version 2.12.3. https://CRAN.R-project.org/package=R.utils.
-* NCBI edirect
-* aria2
+* National Center for Biotechnology Information (NCBI) / U.S. National Library of Medicine. Entrez Direct (EDirect): E-utilities on the Unix Command Line. U.S. National Library of Medicine. Available online at https://www.ncbi.nlm.nih.gov/books/NBK179288/
+* Tatsuhiro Tsujikawa. aria2: The ultra fast download utility. Available online at https://aria2.github.io/.
 * Bushnell B (2014) BBMap. Available online at https://sourceforge.net/projects/bbmap/.
 * Andrews S, Krueger F, Segonds-Pichon A, Biggins L, Krueger C, Wingett S (2010) FastQC: a quality control tool for high throughput sequence data. Available online at https://www.bioinformatics.babraham.ac.uk/projects/fastqc/.
 * Kim D, Paggi JM, Park C, Bennett C, Salzberg SL (2019) Graph-based genome alignment and genotyping with HISAT2 and HISAT-genotype. Nat Biotechnol. 37(8):907-915. https://www.nature.com/articles/s41587-019-0201-4.
