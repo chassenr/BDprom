@@ -7,7 +7,7 @@ authors:
 - family-names: "Hassenrueck"
   given-names: "Christiane"
   orcid: "https://orcid.org/0000-0003-1909-1726"
-title: "Automated workflow to identify and reprocess transcriptomic sequencing data from the Sequence Read Archive (SRA)"
+title: "Automated workflow to identify and reprocess eukaryotic transcriptomic sequencing data from the Sequence Read Archive (SRA)"
 doi: pending
-date-released: 2026-30-06
+date-released: 2026-10-18
 url: "https://github.com/chassenr/BDprom"
