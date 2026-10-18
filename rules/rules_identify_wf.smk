@@ -25,11 +25,11 @@ rule identify_pairs:
 		sdir = config["sdir"]
 	conda: "r-4.4.0"	
 	log:
-		config["wdir"] + "/Bdprom_pairs/logs/pairs.log"
+		config["wdir"] + "/Pairs_out/logs/pairs.log"
 	shell:
 		"""
-		mkdir -p {params.wdir}/Bdprom_pairs
-		mkdir -p {params.wdir}/Bdprom_pairs/logs
+		mkdir -p {params.wdir}/Pairs_out
+		mkdir -p {params.wdir}/Pairs_out/logs
 
-		{params.sdir}/wrapper_identify_wf.R -s {params.sdir} -w {params.wdir} -d {params.dist_max} -c {params.cor_min} -l {params.slope_diff} -m {params.median_diff} -f {params.detect_f} -o {params.wdir}/Bdprom_pairs > {log} 2>&1
+		{params.sdir}/wrapper_identify_wf.R -s {params.sdir} -w {params.wdir} -d {params.dist_max} -c {params.cor_min} -l {params.slope_diff} -m {params.median_diff} -f {params.detect_f} -o {params.wdir}/Pairs_out > {log} 2>&1
 		"""

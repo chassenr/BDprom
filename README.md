@@ -89,7 +89,7 @@ The main output files of this worflow are:
 
 This workflow uses gene coordinates and co-expression patterns to create a list of gene pairs potentially regulated by a bidirectional promoter. It further provides a visual summary of the co-expression for manual refinement of the list of candidate gene pairs.
 
-So far, the ```identify_wf``` workflow is only available as interactive R script using the commands outlined below in this README.
+delme: So far, the ```identify_wf``` workflow is only available as interactive R script using the commands outlined below in this README.
 
 ### Preparations
 
@@ -97,7 +97,7 @@ So far, the ```identify_wf``` workflow is only available as interactive R script
 
 Gene annotations and coordinates can be obtained from [EnsemblGenomes](https://ftp.ensemblgenomes.ebi.ac.uk/pub/protists/current/gtf/) for the organisms available on this platform. E.g. Navigate to phaeodactylum_tricornutum, download Phaeodactylum_tricornutum.ASM15095v2.62.gtf.gz (e.g. into the working directory used for running the below commands), and unzip it.
 
-Gene expression data is available on [DiatomicBase](https://www.diatomicsbase.bio.ens.psl.eu/). The below workflow expects that the file names for the gene expression count data end with the study accession number (PRJ*) immediately prior to the file extension and are saved as comma-separated values (.csv), e.g.: ```Converted_Counts_Data_PRJNA278661.csv```.
+Gene expression data is available, e.g. via the ```read_wf``` or on [DiatomicBase](https://www.diatomicsbase.bio.ens.psl.eu/). The below workflow expects that the file names for the gene expression count data end with the study accession number (PRJ*) immediately prior to the file extension and are saved as comma-separated values (.csv), e.g.: ```Converted_Counts_Data_PRJNA278661.csv```.
 
 Each file with gene expression data must contain a column named "Ensembl_gene_id" with gene names. These gene names must correspond to the gene IDs in the gtf file. The columns in the csv file containing the gene expression count data are recognized automatically by selecting all columns with integer data. Please ensure that no integer columns other than from gene expression quantification are included.
 
@@ -226,9 +226,31 @@ visualize_candidate_gene_pairs(
 ```
 
 
-### Future development
+### Automated workflow
 
-* There will be an automated version of the ```identify_wf``` workflow available soon, implemented in snakemake.
+There is a non-interactive, snakemake-based workflow ```identify_wf``` for the above steps available that integrates with the ```read_wf```. 
+
+
+**Workflow configuration**
+
+In the subdirectory ```config```, there is a configuration file [```config_identify_wf.yaml```](https://github.com/chassenr/BDprom/blob/main/config/config_identify_wf.yaml), where you can set the parameters for gene pair identification. 
+
+* **```sdir```**: Path to the subdirectory of this repository that contains the source code for the R functions. Adjust the absolute path to the directory or use a relateive path based on the location from which you want to run the workflow.
+* **```wdir```**: Path to your working directory. This is not the location of your repository clone, but the location where the output from the workflow will be written. Should be the same as used in ```reads_wf```.
+* **```dist_max```**: Maximum distance between exon start positions between the presumtive co-regulated genes.
+* **```cor_min```**: Minimum pearson correlation coefficient between the TPM gene expression profiles of the two genes per pair.
+* **```slope_diff```**: Maximum fold deviation from a slope of 1 in the linear regression between the expression profiles.
+* **```median_diff```**: Maximum difference between median gene expression relative to the average of the medians.
+* **```detect_f```**: Minimum fraction of studies the gene pair passes the above conditions.
+
+**Workflow execution**
+
+```
+conda activate snakemake-8.28.0
+snakemake -s rules/rules_identify_wf.smk --software-deployment-method conda --cores 1 -np
+```
+
+It is highly recommended to conduct a dry-run first (```-np```). Remove those flags to start the workflow.
 
 
 # 3. extract_wf

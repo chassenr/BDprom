@@ -1,12 +1,9 @@
 # path to directory with R scripts
-sdir: "/srv/bio/Analysis_data/IOWseq000082_BDprom/Intermediate_results/Repos/BDprom/src"
+# sdir: "/srv/bio/Analysis_data/IOWseq000082_BDprom/Intermediate_results/Repos/BDprom/src"
+sdir: "src"
 
 # specify file path to base directory of the reads_wf output
 wdir: "/srv/bio/Analysis_data/IOWseq000082_BDprom/Intermediate_results/Thalassiosira_pseudonana"
-
-# configure threads for parallelization
-threads: 1 # default if threads are not specified in the rule
-parallel_threads: 48
 
 # specify parameters for identification of ge candidates
 dist_max: 600

@@ -58,7 +58,7 @@ msg <- function(X) {
 # define command line options
 option_list <- list(
   make_option(
-    c("-s", "--source"),
+    c("-s", "--sdir"),
     type = "character",
     default = "src",
     help = "The directory containing Rscript for creating functions to extract candidate genes",
@@ -80,31 +80,31 @@ option_list <- list(
   ),
   make_option(
     c("-c", "--cor_min"),
-    type = "integer",
+    type = "numeric",
     default = 0.5,
-    help = "The minimum correlation coeficcient between genes",
-    metavar = "integer"
+    help = "The minimum pearson correlation coeficcient between genes",
+    metavar = "numeric"
   ),
   make_option(
     c("-l", "--slope_diff"),
-    type = "integer",
+    type = "numeric",
     default = 2,
     help = "The maximum fold deviation from a slope of 1 in the linear regression",
-    metavar = "integer"
+    metavar = "numeric"
   ),
   make_option(
     c("-m", "--median_diff"),
-    type = "integer",
+    type = "numeric",
     default = 1.2,
     help = "The maximum difference between median gene expression relative to the average of the medians",
-    metavar = "integer"
+    metavar = "numeric"
   ),
   make_option(
     c("-f", "--detect_f"),
-    type = "integer",
+    type = "numeric",
     default = 0.5,
     help = "The minimum fraction of studies the gene pair passes the above two conditions",
-    metavar = "integer"
+    metavar = "numeric"
   ),
   make_option(
     c("-o", "--outdir"),
@@ -158,6 +158,6 @@ visualize_candidate_gene_pairs(
 )
 
 # save workspace
-save.image(paste0(opt$outdir, "/identity_pairs.RData"))
+save.image(paste0(opt$outdir, "/identify_wf.RData"))
 
 
